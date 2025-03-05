@@ -541,6 +541,7 @@ nav a:hover::after {
     color: var(--primary);
 }
 
+
 .pricing-price {
     font-size: 3rem;
     font-weight: 700;
