@@ -115,7 +115,7 @@
                 {% endfor %}
             {% endif %}
             
-            <form method="post" action="{% url 'login' %}">
+            <form method="post" action="{% url 'pos:login' %}">
                 {% csrf_token %}
                 
                 <div class="mb-3">
@@ -143,7 +143,10 @@
         </div>
         
         <div class="login-footer">
-            <p>Don't have an account? <a href="{% url 'register' %}">Register</a></p>
+            <p>Don't have an account? <a href="{% url 'pos:register' %}">Register</a></p>
+        </div>
+        <div class="login-footer">
+            <p>Go to <a href="{% url 'core:index' %}">Product Page</a></p>
         </div>
     </div>
 

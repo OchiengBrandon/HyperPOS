@@ -184,7 +184,7 @@ class POSRedirectView(View):
     def get(self, request):
         # This would redirect to your actual POS application
         # You might have different logic based on user type or subscription
-        return redirect('pos_app:dashboard')
+        return redirect('pos:login')
 
 
 class ContactView(View):
@@ -234,18 +234,6 @@ class NewsletterSignupView(View):
 # These views would be implemented in separate authentication apps
 # or using Django's built-in auth views, but included here for reference
 
-def login_view(request):
-    """
-    View for the login page.
-    """
-    return render(request, 'core/login.html')
-
-
-def signup_view(request):
-    """
-    View for the signup page.
-    """
-    return render(request, 'core/signup.html')
 
 
 def help_center_view(request):

@@ -79,9 +79,9 @@ def login_view(request):
             login(request, user)
             business = get_business_for_user(user)
             if business:
-                return redirect('dashboard')
+                return redirect('pos:dashboard')
             else:
-                return redirect('business_setup')
+                return redirect('pos:business_setup')
         else:
             messages.error(request, 'Invalid username or password')
     return render(request, 'pos_app/login.html')
@@ -114,7 +114,7 @@ def business_setup(request):
             )
             
             messages.success(request, "Your business has been set up successfully!")
-            return redirect('dashboard')
+            return redirect('pos:dashboard')
         else:
             # Log form errors for debugging
             print(form.errors)  # Optional: Remove in production
@@ -130,13 +130,13 @@ def business_setup(request):
 def dashboard(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     # Get sales data for the last 30 days
     thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -202,13 +202,13 @@ def dashboard(request):
 def pos(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     # Get all categories and products
     categories = Category.objects.filter(business=business)
@@ -315,7 +315,7 @@ def process_sale(request):
 def get_receipt(request, sale_id):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     sale = get_object_or_404(Sale, id=sale_id, business=business)
     items = sale.items.all()
@@ -333,13 +333,13 @@ def get_receipt(request, sale_id):
 def product_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     # Get all products with pagination
     products_list = Product.objects.filter(business=business).order_by('name')
@@ -380,13 +380,13 @@ def product_list(request):
 def product_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to create products')
-        return redirect('product_list')
+        return redirect('pos:product_list')
     
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES, business=business)
@@ -407,7 +407,7 @@ def product_create(request):
                 )
             
             messages.success(request, f'Product "{product.name}" has been created')
-            return redirect('product_list')
+            return redirect('pos:product_list')
     else:
         form = ProductForm(business=business)
     
@@ -424,13 +424,13 @@ def product_create(request):
 def product_edit(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to edit products')
-        return redirect('product_list')
+        return redirect('pos:product_list')
     
     product = get_object_or_404(Product, pk=pk, business=business)
     
@@ -454,7 +454,7 @@ def product_edit(request, pk):
                 )
             
             messages.success(request, f'Product "{product.name}" has been updated')
-            return redirect('product_list')
+            return redirect('pos:product_list')
     else:
         form = ProductForm(instance=product, business=business)
     
@@ -472,13 +472,13 @@ def product_edit(request, pk):
 def product_delete(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to delete products')
-        return redirect('product_list')
+        return redirect('pos:product_list')
     
     product = get_object_or_404(Product, pk=pk, business=business)
     
@@ -487,7 +487,7 @@ def product_delete(request, pk):
         product.is_active = False
         product.save()
         messages.success(request, f'Product "{product_name}" has been deactivated')
-        return redirect('product_list')
+        return redirect('pos:product_list')
     
     context = {
         'business': business,
@@ -502,13 +502,13 @@ def product_delete(request, pk):
 def category_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     # Get all categories
     categories = Category.objects.filter(business=business).order_by('name')
@@ -525,13 +525,13 @@ def category_list(request):
 def category_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to create categories')
-        return redirect('category_list')
+        return redirect('pos:category_list')
     
     if request.method == 'POST':
         form = CategoryForm(request.POST)
@@ -540,7 +540,7 @@ def category_create(request):
             category.business = business
             category.save()
             messages.success(request, f'Category "{category.name}" has been created')
-            return redirect('category_list')
+            return redirect('pos:category_list')
     else:
         form = CategoryForm()
     
@@ -557,13 +557,13 @@ def category_create(request):
 def category_edit(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to edit categories')
-        return redirect('category_list')
+        return redirect('pos:category_list')
     
     category = get_object_or_404(Category, pk=pk, business=business)
     
@@ -572,7 +572,7 @@ def category_edit(request, pk):
         if form.is_valid():
             category = form.save()
             messages.success(request, f'Category "{category.name}" has been updated')
-            return redirect('category_list')
+            return redirect('pos:category_list')
     else:
         form = CategoryForm(instance=category)
     
@@ -590,13 +590,13 @@ def category_edit(request, pk):
 def category_delete(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to delete categories')
-        return redirect('category_list')
+        return redirect('pos:category_list')
     
     category = get_object_or_404(Category, pk=pk, business=business)
     
@@ -604,12 +604,12 @@ def category_delete(request, pk):
         # Check if category has products
         if category.products.exists():
             messages.error(request, f'Cannot delete category "{category.name}" because it has products')
-            return redirect('category_list')
+            return redirect('pos:category_list')
         
         category_name = category.name
         category.delete()
         messages.success(request, f'Category "{category_name}" has been deleted')
-        return redirect('category_list')
+        return redirect('pos:category_list')
     
     context = {
         'business': business,
@@ -624,13 +624,13 @@ def category_delete(request, pk):
 def customer_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     # Get all customers with pagination
     customers_list = Customer.objects.filter(business=business).order_by('first_name', 'last_name')
@@ -662,13 +662,13 @@ def customer_list(request):
 def customer_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'cashier']:
         messages.error(request, 'You do not have permission to create customers')
-        return redirect('customer_list')
+        return redirect('pos:customer_list')
     
     if request.method == 'POST':
         form = CustomerForm(request.POST)
@@ -694,13 +694,13 @@ def customer_create(request):
 def customer_edit(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'cashier']:
         messages.error(request, 'You do not have permission to edit customers')
-        return redirect('customer_list')
+        return redirect('pos:customer_list')
     
     customer = get_object_or_404(Customer, pk=pk, business=business)
     
@@ -709,7 +709,7 @@ def customer_edit(request, pk):
         if form.is_valid():
             customer = form.save()
             messages.success(request, f'Customer "{customer.full_name}" has been updated')
-            return redirect('customer_list')
+            return redirect('pos:customer_list')
     else:
         form = CustomerForm(instance=customer)
     
@@ -727,13 +727,13 @@ def customer_edit(request, pk):
 def customer_delete(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to delete customers')
-        return redirect('customer_list')
+        return redirect('pos:customer_list')
     
     customer = get_object_or_404(Customer, pk=pk, business=business)
     
@@ -741,12 +741,12 @@ def customer_delete(request, pk):
         # Check if customer has sales
         if customer.sales.exists():
             messages.error(request, f'Cannot delete customer "{customer.full_name}" because they have sales records')
-            return redirect('customer_list')
+            return redirect('pos:customer_list')
         
         customer_name = customer.full_name
         customer.delete()
         messages.success(request, f'Customer "{customer_name}" has been deleted')
-        return redirect('customer_list')
+        return redirect('pos:customer_list')
     
     context = {
         'business': business,
@@ -761,13 +761,13 @@ def customer_delete(request, pk):
 def employee_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to view employees')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     # Get all employees
     employees = Employee.objects.filter(business=business).order_by('-is_active', 'user__first_name', 'user__last_name')
@@ -784,13 +784,13 @@ def employee_list(request):
 def employee_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to create employees')
-        return redirect('employee_list')
+        return redirect('pos:employee_list')
     
     if request.method == 'POST':
         form = EmployeeForm(request.POST)
@@ -823,7 +823,7 @@ def employee_create(request):
             employee.save()
             
             messages.success(request, f'Employee "{user.get_full_name()}" has been created')
-            return redirect('employee_list')
+            return redirect('pos:employee_list')
     else:
         form = EmployeeForm()
     
@@ -841,13 +841,13 @@ def employee_create(request):
 def employee_delete(request, employee_id):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
 
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to delete employees')
-        return redirect('employee_list')
+        return redirect('pos:employee_list')
 
     # Get the employee object
     employee = get_object_or_404(Employee, id=employee_id, business=business)
@@ -855,19 +855,19 @@ def employee_delete(request, employee_id):
     # Delete the employee
     employee.delete()
     messages.success(request, f'Employee "{employee.user.get_full_name()}" has been deleted')
-    return redirect('employee_list')
+    return redirect('pos:employee_list')
 
 @login_required
 def employee_edit(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to edit employees')
-        return redirect('employee_list')
+        return redirect('pos:employee_list')
     
     employee = get_object_or_404(Employee, pk=pk, business=business)
     
@@ -891,7 +891,7 @@ def employee_edit(request, pk):
             employee = form.save()
             
             messages.success(request, f'Employee "{user.get_full_name()}" has been updated')
-            return redirect('employee_list')
+            return redirect('pos:employee_list')
     else:
         form = EmployeeForm(instance=employee)
     
@@ -909,13 +909,13 @@ def employee_edit(request, pk):
 def employee_toggle_status(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to change employee status')
-        return redirect('employee_list')
+        return redirect('pos:employee_list')
     
     employee = get_object_or_404(Employee, pk=pk, business=business)
     
@@ -925,20 +925,20 @@ def employee_toggle_status(request, pk):
     
     status = 'activated' if employee.is_active else 'deactivated'
     messages.success(request, f'Employee "{employee.user.get_full_name()}" has been {status}')
-    return redirect('employee_list')
+    return redirect('pos:employee_list')
 
 # Sales
 @login_required
 def sales_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     # Get all sales with pagination
     sales_list = Sale.objects.filter(business=business).order_by('-created_at')
@@ -1009,13 +1009,13 @@ def sales_list(request):
 def sale_detail(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if not role:
         messages.error(request, 'You do not have access to this business')
-        return redirect('login')
+        return redirect('pos:login')
     
     sale = get_object_or_404(Sale, pk=pk, business=business)
     items = sale.items.all()
@@ -1033,13 +1033,13 @@ def sale_detail(request, pk):
 def sale_void(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to void sales')
-        return redirect('sales_list')
+        return redirect('pos:sales_list')
     
     sale = get_object_or_404(Sale, pk=pk, business=business)
     
@@ -1047,7 +1047,7 @@ def sale_void(request, pk):
         # Check if sale can be voided
         if sale.status != 'completed':
             messages.error(request, f'Sale {sale.invoice_number} cannot be voided because it is already {sale.get_status_display()}')
-            return redirect('sale_detail', pk=sale.pk)
+            return redirect('pos:sale_detail', pk=sale.pk)
         
         # Void sale
         sale.status = 'cancelled'
@@ -1070,7 +1070,7 @@ def sale_void(request, pk):
             sale.customer.save()
         
         messages.success(request, f'Sale {sale.invoice_number} has been voided')
-        return redirect('sales_list')
+        return redirect('pos:sales_list')
     
     context = {
         'business': business,
@@ -1084,13 +1084,13 @@ def sale_void(request, pk):
 def sale_refund(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to refund sales')
-        return redirect('sales_list')
+        return redirect('pos:sales_list')
     
     sale = get_object_or_404(Sale, pk=pk, business=business)
     items = sale.items.all()
@@ -1099,7 +1099,7 @@ def sale_refund(request, pk):
         # Check if sale can be refunded
         if sale.status != 'completed':
             messages.error(request, f'Sale {sale.invoice_number} cannot be refunded because it is already {sale.get_status_display()}')
-            return redirect('sale_detail', pk=sale.pk)
+            return redirect('pos:sale_detail', pk=sale.pk)
         
         # Process refund
         refund_type = request.POST.get('refund_type')
@@ -1161,9 +1161,9 @@ def sale_refund(request, pk):
                 messages.success(request, f'Sale {sale.invoice_number} has been partially refunded')
             else:
                 messages.error(request, 'No items selected for refund')
-                return redirect('sale_refund', pk=sale.pk)
+                return redirect('pos:sale_refund', pk=sale.pk)
         
-        return redirect('sales_list')
+        return redirect('pos:sales_list')
     
     context = {
         'business': business,
@@ -1179,13 +1179,13 @@ def sale_refund(request, pk):
 def inventory_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to view inventory')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     # Get all inventory records with pagination
     inventory_list = Inventory.objects.filter(business=business).order_by('-created_at')
@@ -1242,13 +1242,13 @@ def inventory_list(request):
 def inventory_adjust(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to adjust inventory')
-        return redirect('inventory_list')
+        return redirect('pos:inventory_list')
     
     if request.method == 'POST':
         form = InventoryForm(request.POST, business=business)
@@ -1258,7 +1258,7 @@ def inventory_adjust(request):
             inventory.created_by = request.user
             inventory.save()
             messages.success(request, 'Inventory has been adjusted successfully')
-            return redirect('inventory_list')
+            return redirect('pos:inventory_list')
     else:
         form = InventoryForm(business=business)
     
@@ -1276,13 +1276,13 @@ def inventory_adjust(request):
 def supplier_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to view suppliers')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     # Get all suppliers
     suppliers = Supplier.objects.filter(business=business).order_by('name')
@@ -1299,13 +1299,13 @@ def supplier_list(request):
 def supplier_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to create suppliers')
-        return redirect('supplier_list')
+        return redirect('pos:supplier_list')
     
     if request.method == 'POST':
         form = SupplierForm(request.POST)
@@ -1314,7 +1314,7 @@ def supplier_create(request):
             supplier.business = business
             supplier.save()
             messages.success(request, f'Supplier "{supplier.name}" has been created')
-            return redirect('supplier_list')
+            return redirect('pos:supplier_list')
     else:
         form = SupplierForm()
     
@@ -1331,13 +1331,13 @@ def supplier_create(request):
 def supplier_edit(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to edit suppliers')
-        return redirect('supplier_list')
+        return redirect('pos:supplier_list')
     
     supplier = get_object_or_404(Supplier, pk=pk, business=business)
     
@@ -1346,7 +1346,7 @@ def supplier_edit(request, pk):
         if form.is_valid():
             supplier = form.save()
             messages.success(request, f'Supplier "{supplier.name}" has been updated')
-            return redirect('supplier_list')
+            return redirect('pos:supplier_list')
     else:
         form = SupplierForm(instance=supplier)
     
@@ -1364,13 +1364,13 @@ def supplier_edit(request, pk):
 def supplier_delete(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to delete suppliers')
-        return redirect('supplier_list')
+        return redirect('pos:supplier_list')
     
     supplier = get_object_or_404(Supplier, pk=pk, business=business)
     
@@ -1378,12 +1378,12 @@ def supplier_delete(request, pk):
         # Check if supplier has purchases
         if supplier.purchases.exists():
             messages.error(request, f'Cannot delete supplier "{supplier.name}" because it has purchase records')
-            return redirect('supplier_list')
+            return redirect('pos:supplier_list')
         
         supplier_name = supplier.name
         supplier.delete()
         messages.success(request, f'Supplier "{supplier_name}" has been deleted')
-        return redirect('supplier_list')
+        return redirect('pos:supplier_list')
     
     context = {
         'business': business,
@@ -1398,13 +1398,13 @@ def supplier_delete(request, pk):
 def purchase_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to view purchases')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     # Get all purchases with pagination
     purchases_list = Purchase.objects.filter(business=business).order_by('-created_at')
@@ -1463,13 +1463,13 @@ def purchase_list(request):
 def purchase_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to create purchases')
-        return redirect('purchase_list')
+        return redirect('pos:purchase_list')
     
     if request.method == 'POST':
         form = PurchaseForm(request.POST, business=business)
@@ -1480,7 +1480,7 @@ def purchase_create(request):
             purchase.save()
             
             # Redirect to add items
-            return redirect('purchase_add_items', pk=purchase.pk)
+            return redirect('pos:purchase_add_items', pk=purchase.pk)
         else:
             # Log form errors to the terminal
             print("Purchase Form Errors:", form.errors)  # Display errors in the terminal
@@ -1502,13 +1502,13 @@ def purchase_create(request):
 def purchase_add_items(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to add purchase items')
-        return redirect('purchase_list')
+        return redirect('pos:purchase_list')
     
     purchase = get_object_or_404(Purchase, pk=pk, business=business)
     
@@ -1525,7 +1525,7 @@ def purchase_add_items(request, pk):
             purchase.save()
             
             messages.success(request, f'Item "{item.product.name}" has been added to the purchase')
-            return redirect('purchase_add_items', pk=purchase.pk)
+            return redirect('pos:purchase_add_items', pk=purchase.pk)
         else:
             # Log form errors to the terminal
             print("Purchase Item Form Errors:", form.errors)  # Display errors in the terminal
@@ -1552,7 +1552,7 @@ def purchase_item_edit(request, item_id):
     # Get the business for the logged-in user
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
 
     # Retrieve the purchase item for editing
     item = get_object_or_404(PurchaseItem, id=item_id, purchase__business=business)
@@ -1562,7 +1562,7 @@ def purchase_item_edit(request, item_id):
         if form.is_valid():
             form.save()
             messages.success(request, f'Item "{item.product.name}" has been updated successfully.')
-            return redirect('purchase_add_items', pk=item.purchase.pk)
+            return redirect('pos:purchase_add_items', pk=item.purchase.pk)
         else:
             # Log form errors for debugging
             print("Edit Purchase Item Form Errors:", form.errors)
@@ -1585,7 +1585,7 @@ def purchase_item_delete(request, item_id):
     # Get the business for the logged-in user
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
 
     # Retrieve the purchase item for deletion
     item = get_object_or_404(PurchaseItem, id=item_id, purchase__business=business)
@@ -1594,7 +1594,7 @@ def purchase_item_delete(request, item_id):
         # Delete the item
         item.delete()
         messages.success(request, f'Item "{item.product.name}" has been deleted successfully.')
-        return redirect('purchase_add_items', pk=item.purchase.pk)
+        return redirect('pos:purchase_add_items', pk=item.purchase.pk)
 
     # If GET, render a confirmation page (optional)
     context = {
@@ -1607,13 +1607,13 @@ def purchase_item_delete(request, item_id):
 def purchase_detail(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to view purchase details')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     purchase = get_object_or_404(Purchase, pk=pk, business=business)
     items = purchase.items.all()
@@ -1631,13 +1631,13 @@ def purchase_detail(request, pk):
 def purchase_receive(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to receive purchases')
-        return redirect('purchase_list')
+        return redirect('pos:purchase_list')
     
     purchase = get_object_or_404(Purchase, pk=pk, business=business)
     items = purchase.items.all()
@@ -1683,7 +1683,7 @@ def purchase_receive(request, pk):
         purchase.save()
         
         messages.success(request, f'Purchase {purchase.reference_number} has been updated')
-        return redirect('purchase_list')
+        return redirect('pos:purchase_list')
     
     context = {
         'business': business,
@@ -1698,13 +1698,13 @@ def purchase_receive(request, pk):
 def purchase_cancel(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to cancel purchases')
-        return redirect('purchase_list')
+        return redirect('pos:purchase_list')
     
     purchase = get_object_or_404(Purchase, pk=pk, business=business)
     
@@ -1712,18 +1712,18 @@ def purchase_cancel(request, pk):
         # Check if purchase can be cancelled
         if purchase.status == 'received':
             messages.error(request, f'Purchase {purchase.reference_number} cannot be cancelled because it is already received')
-            return redirect('purchase_detail', pk=purchase.pk)
+            return redirect('pos:purchase_detail', pk=purchase.pk)
         
         if purchase.status == 'partially_received':
             messages.error(request, f'Purchase {purchase.reference_number} cannot be cancelled because it is partially received')
-            return redirect('purchase_detail', pk=purchase.pk)
+            return redirect('pos:purchase_detail', pk=purchase.pk)
         
         # Cancel purchase
         purchase.status = 'cancelled'
         purchase.save()
         
         messages.success(request, f'Purchase {purchase.reference_number} has been cancelled')
-        return redirect('purchase_list')
+        return redirect('pos:purchase_list')
     
     context = {
         'business': business,
@@ -1738,13 +1738,13 @@ def purchase_cancel(request, pk):
 def expense_list(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to view expenses')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     # Get all expenses with pagination
     expenses_list = Expense.objects.filter(business=business).order_by('-date')
@@ -1795,13 +1795,13 @@ def expense_list(request):
 def expense_create(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to create expenses')
-        return redirect('expense_list')
+        return redirect('pos:expense_list')
     
     if request.method == 'POST':
         form = ExpenseForm(request.POST, request.FILES)
@@ -1811,7 +1811,7 @@ def expense_create(request):
             expense.created_by = request.user
             expense.save()
             messages.success(request, 'Expense has been created successfully')
-            return redirect('expense_list')
+            return redirect('pos:expense_list')
     else:
         form = ExpenseForm(initial={'date': timezone.now().date()})
     
@@ -1828,13 +1828,13 @@ def expense_create(request):
 def expense_edit(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to edit expenses')
-        return redirect('expense_list')
+        return redirect('pos:expense_list')
     
     expense = get_object_or_404(Expense, pk=pk, business=business)
     
@@ -1843,7 +1843,7 @@ def expense_edit(request, pk):
         if form.is_valid():
             expense = form.save()
             messages.success(request, 'Expense has been updated successfully')
-            return redirect('expense_list')
+            return redirect('pos:expense_list')
     else:
         form = ExpenseForm(instance=expense)
     
@@ -1861,20 +1861,20 @@ def expense_edit(request, pk):
 def expense_delete(request, pk):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to delete expenses')
-        return redirect('expense_list')
+        return redirect('pos:expense_list')
     
     expense = get_object_or_404(Expense, pk=pk, business=business)
     
     if request.method == 'POST':
         expense.delete()
         messages.success(request, 'Expense has been deleted successfully')
-        return redirect('expense_list')
+        return redirect('pos:expense_list')
     
     context = {
         'business': business,
@@ -1889,13 +1889,13 @@ def expense_delete(request, pk):
 def reports(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to view reports')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
     
     # Default to current month
     today = timezone.now().date()
@@ -2030,13 +2030,13 @@ def reports(request):
 def export_sales_report(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to export reports')
-        return redirect('reports')
+        return redirect('pos:reports')
     
     # Get date range
     start_date = request.GET.get('start_date')
@@ -2084,13 +2084,13 @@ def export_sales_report(request):
 def export_inventory_report(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin', 'manager', 'inventory']:
         messages.error(request, 'You do not have permission to export reports')
-        return redirect('reports')
+        return redirect('pos:reports')
     
     # Get products
     products = Product.objects.filter(business=business).order_by('category__name', 'name')
@@ -2121,9 +2121,6 @@ def export_inventory_report(request):
     return response
 
 import logging
-from django.contrib import messages
-from django.shortcuts import redirect, render
-from django.contrib.auth.decorators import login_required
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -2133,13 +2130,13 @@ logger = logging.getLogger(__name__)
 def settings_view(request):
     business = get_business_for_user(request.user)
     if not business:
-        return redirect('business_setup')
+        return redirect('pos:business_setup')
 
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to access settings')
-        return redirect('dashboard')
+        return redirect('pos:dashboard')
 
     if request.method == 'POST':
         business_form = BusinessForm(request.POST, request.FILES, instance=business)
@@ -2150,7 +2147,7 @@ def settings_view(request):
             business_form.save()
             settings_form.save()
             messages.success(request, 'Settings have been updated successfully')
-            return redirect('settings')
+            return redirect('pos:settings')
         else:
             # Log form errors to the terminal
             logger.error("Form validation errors: %s", {

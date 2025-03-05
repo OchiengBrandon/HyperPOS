@@ -15,7 +15,7 @@
         {% csrf_token %}
         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
             <button type="submit" class="btn btn-danger">Delete</button>
-            <a href="{% url 'purchase_add_items' item.purchase.id %}" class="btn btn-outline-secondary">Cancel</a>
+            <a href="{% url 'pos:purchase_add_items' item.purchase.id %}" class="btn btn-outline-secondary">Cancel</a>
         </div>
     </form>
 </div>

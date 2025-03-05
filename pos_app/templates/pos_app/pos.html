@@ -897,7 +897,7 @@
             }
             
             // Send sale data to server
-            fetch('{% url "process_sale" %}', {
+            fetch('{% url "pos:process_sale" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

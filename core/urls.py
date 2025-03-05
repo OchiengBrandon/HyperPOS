@@ -7,12 +7,6 @@ urlpatterns = [
     # Main landing page
     path('', views.IndexView.as_view(), name='index'),
     
-    # Authentication pages
-    path('login/', views.login_view, name='login'),
-    path('signup/', views.signup_view, name='signup'),
-    
-    # POS application redirect
-    path('pos/', views.POSRedirectView.as_view(), name='pos_redirect'),
     
     # Contact form submission
     path('contact/', views.ContactView.as_view(), name='contact'),

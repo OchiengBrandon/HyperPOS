@@ -71,7 +71,7 @@
                     {% for sale in sales %}
                         <tr>
                             <td>
-                                <a href="{% url 'sale_detail' sale.id %}">{{ sale.invoice_number }}</a>
+                                <a href="{% url 'pos:sale_detail' sale.id %}">{{ sale.invoice_number }}</a>
                             </td>
                             <td>{{ sale.customer.full_name }}</td>
                             <td>${{ sale.total_amount|floatformat:2 }}</td>

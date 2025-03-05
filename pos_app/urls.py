@@ -1,7 +1,9 @@
-# pos_app/urls.py
+# pos/urls.py
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+
+app_name = 'pos'  # Add this line for namespace
 
 urlpatterns = [
     # Authentication
@@ -44,8 +46,7 @@ urlpatterns = [
     path('employees/create/', views.employee_create, name='employee_create'),
     path('employees/<int:pk>/edit/', views.employee_edit, name='employee_edit'),
     path('employees/<int:pk>/toggle-status/', views.employee_toggle_status, name='employee_toggle_status'),
-    path('employees/<int:pk>/delete/', views.employee_delete, name='employee_delete'),  # Added delete URL
-
+    path('employees/<int:pk>/delete/', views.employee_delete, name='employee_delete'),
     
     # Sales
     path('sales/', views.sales_list, name='sales_list'),
@@ -53,7 +54,7 @@ urlpatterns = [
     path('sales/<int:pk>/void/', views.sale_void, name='sale_void'),
     path('sales/<int:pk>/refund/', views.sale_refund, name='sale_refund'),
     
-    # Inventory 
+    # Inventory
     path('inventory/', views.inventory_list, name='inventory_list'),
     path('inventory/adjust/', views.inventory_adjust, name='inventory_adjust'),
     

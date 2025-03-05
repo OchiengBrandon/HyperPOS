@@ -115,9 +115,9 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Login URL
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGIN_URL = 'pos:login'  # Use the namespace for the login URL
+LOGIN_REDIRECT_URL = 'pos:dashboard'  # Use the namespace for the dashboard URL
+LOGOUT_REDIRECT_URL = 'core:index'  # Use the namespace for the login URL after logout
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True

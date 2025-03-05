@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Purchase Details #{{ purchase.id }}</h1>
         <div>
-            <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url 'pos:purchase_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-1"></i> Back to Purchases
             </a>
         </div>
@@ -33,15 +33,15 @@
 
             <div class="mt-4">
                 {% if purchase.status == "pending" or purchase.status == "partially_received" %}
-                    <a href="{% url 'purchase_receive' purchase.id %}" class="btn btn-success">
+                    <a href="{% url 'pos:purchase_receive' purchase.id %}" class="btn btn-success">
                         <i class="fas fa-check-circle me-1"></i> Receive Purchase
                     </a>
                     {% if purchase.status == "pending" %}
-                        <a href="{% url 'purchase_cancel' purchase.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this purchase?');">
+                        <a href="{% url 'pos:purchase_cancel' purchase.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this purchase?');">
                             <i class="fas fa-times-circle me-1"></i> Cancel Purchase
                         </a>
                     {% endif %}
-                    <a href="{% url 'purchase_add_items' purchase.id %}" class="btn btn-secondary">
+                    <a href="{% url 'pos:purchase_add_items' purchase.id %}" class="btn btn-secondary">
                         <i class="fas fa-plus-circle me-1"></i> Add Items
                     </a>
                 {% endif %}

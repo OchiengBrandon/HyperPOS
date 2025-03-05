@@ -29,8 +29,8 @@
             </nav>
             
             <div class="auth-buttons">
-                <a href="/login" class="btn btn-secondary">Login</a>
-                <a href="/signup" class="btn btn-primary">Sign Up</a>
+                <a href="{% url 'pos:login' %}" class="btn btn-secondary">Login</a>
+                <a href="{% url 'pos:register' %}" class="btn btn-primary">Sign Up</a>
                 <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
                     <i class="fas fa-moon"></i>
                 </button>
@@ -47,8 +47,8 @@
                 <li><a href="#pricing">Pricing</a></li>
                 <li><a href="#testimonials">Testimonials</a></li>
                 <li><a href="#contact">Contact</a></li>
-                <li><a href="{% url 'login' %}">Login</a></li>
-                <li><a href="/signup">Sign Up</a></li>
+                <li><a href="{% url 'pos:login' %}">Login</a></li>
+                <li><a href="{% url 'pos:register' %}">Sign Up</a></li>
             </ul>
         </div>
     </header>
@@ -67,7 +67,7 @@
                     <p>The ultimate point-of-sale solution tailored for small to medium businesses. Streamline your operations, boost sales, and delight customers with our powerful yet easy-to-use POS system.</p>
                     
                     <div class="hero-buttons">
-                        <a href="/pos" class="btn btn-primary">
+                        <a href="{% url 'pos:login' %}" class="btn btn-primary">
                             <i class="fas fa-desktop"></i> Try HyperPOS
                         </a>
                         <a href="#features" class="btn btn-secondary">
@@ -315,10 +315,10 @@
                 <p>Join thousands of businesses that have streamlined their operations, increased sales, and improved customer satisfaction with HyperPOS.</p>
                 
                 <div class="cta-buttons">
-                    <a href="/signup" class="btn btn-secondary">
+                    <a href="{% url 'pos:register' %}" class="btn btn-secondary">
                         <i class="fas fa-user-plus"></i> Sign Up Now
                     </a>
-                    <a href="/pos" class="btn btn-primary">
+                    <a href="{% url 'pos:login' %}" class="btn btn-primary">
                         <i class="fas fa-desktop"></i> Try HyperPOS
                     </a>
                 </div>
@@ -350,7 +350,7 @@
                         <li><a href="#pricing"><i class="fas fa-chevron-right"></i> Pricing</a></li>
                         <li><a href="#testimonials"><i class="fas fa-chevron-right"></i> Testimonials</a></li>
                         <li><a href="/blog"><i class="fas fa-chevron-right"></i> Blog</a></li>
-                        <li><a href="/pos"><i class="fas fa-chevron-right"></i> POS System</a></li>
+                        <li><a href="{% url 'pos:login' %}"><i class="fas fa-chevron-right"></i> POS System</a></li>
                     </ul>
                 </div>
                 

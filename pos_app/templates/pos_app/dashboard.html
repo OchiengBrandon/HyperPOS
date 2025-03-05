@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
         <div>
-            <a href="{% url 'pos' %}" class="btn btn-primary">
+            <a href="{% url 'pos:pos' %}" class="btn btn-primary">
                 <i class="fas fa-cash-register me-2"></i> New Sale
             </a>
         </div>
@@ -112,8 +112,8 @@
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="chartOptions">
-                            <li><a class="dropdown-item" href="{% url 'reports' %}">View Full Report</a></li>
-                            <li><a class="dropdown-item" href="{% url 'export_sales_report' %}?start_date={{ thirty_days_ago|date:'Y-m-d' }}&end_date={{ today|date:'Y-m-d' }}">Export Data</a></li>
+                            <li><a class="dropdown-item" href="{% url 'pos:reports' %}">View Full Report</a></li>
+                            <li><a class="dropdown-item" href="{% url 'pos:export_sales_report' %}?start_date={{ thirty_days_ago|date:'Y-m-d' }}&end_date={{ today|date:'Y-m-d' }}">Export Data</a></li>
                         </ul>
                     </div>
                 </div>
@@ -128,7 +128,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Low Stock Products</h5>
-                    <a href="{% url 'product_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                    <a href="{% url 'pos:product_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
@@ -159,7 +159,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Recent Sales</h5>
-                    <a href="{% url 'sales_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                    <a href="{% url 'pos:sales_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -177,7 +177,7 @@
                                 {% for sale in recent_sales %}
                                     <tr>
                                         <td>
-                                            <a href="{% url 'sale_detail' sale.id %}">{{ sale.invoice_number }}</a>
+                                            <a href="{% url 'pos:sale_detail' sale.id %}">{{ sale.invoice_number }}</a>
                                         </td>
                                         <td>{{ sale.created_at|date:"M d, Y H:i" }}</td>
                                         <td>{{ sale.customer.full_name|default:"Walk-in Customer" }}</td>
@@ -198,7 +198,7 @@
                                     <tr>
                                         <td colspan="5" class="text-center py-4">
                                             <p class="mb-0">No sales recorded yet</p>
-                                            <a href="{% url 'pos' %}" class="btn btn-sm btn-primary mt-2">Create Sale</a>
+                                            <a href="{% url 'pos:pos' %}" class="btn btn-sm btn-primary mt-2">Create Sale</a>
                                         </td>
                                     </tr>
                                 {% endfor %}
