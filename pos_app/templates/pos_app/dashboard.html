@@ -1,0 +1,316 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+        <div>
+            <a href="{% url 'pos' %}" class="btn btn-primary">
+                <i class="fas fa-cash-register me-2"></i> New Sale
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-white-50">Total Sales (30 days)</div>
+                            <div class="stat-value">{{ business.currency_symbol }} {{ total_sales|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="icon text-white-50">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-primary text-white-50">
+                    <small>{{ sales_count }} transactions</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-white-50">Average Sale</div>
+                            <div class="stat-value">{{ business.currency_symbol }} {{ avg_sale|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="icon text-white-50">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-success text-white-50">
+                    <small>Per transaction</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-white-50">Products</div>
+                            <div class="stat-value">{{ product_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="icon text-white-50">
+                                <i class="fas fa-box"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-info text-white-50">
+                    <small>In inventory</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-white-50">Low Stock Items</div>
+                            <div class="stat-value">{{ low_stock_products.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="icon text-white-50">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-warning text-white-50">
+                    <small>Need attention</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Tables Row -->
+    <div class="row">
+        <!-- Sales Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sales Trend (Last 30 Days)</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="chartOptions" data-bs-toggle="dropdown" aria-expanded="false" title="Chart Options">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="chartOptions">
+                            <li><a class="dropdown-item" href="{% url 'reports' %}">View Full Report</a></li>
+                            <li><a class="dropdown-item" href="{% url 'export_sales_report' %}?start_date={{ thirty_days_ago|date:'Y-m-d' }}&end_date={{ today|date:'Y-m-d' }}">Export Data</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Products -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Low Stock Products</h5>
+                    <a href="{% url 'product_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for product in low_stock_products %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ product.name }}</h6>
+                                    <span class="badge bg-warning">{{ product.stock_quantity }}</span>
+                                </div>
+                                <small class="text-muted">{{ product.category.name }}</small>
+                            </div>
+                        {% empty %}
+                            <div class="list-group-item text-center py-4">
+                                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                                <p class="mb-0">All products are well stocked</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sales and Top Products Row -->
+    <div class="row">
+        <!-- Recent Sales -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Sales</h5>
+                    <a href="{% url 'sales_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in recent_sales %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'sale_detail' sale.id %}">{{ sale.invoice_number }}</a>
+                                        </td>
+                                        <td>{{ sale.created_at|date:"M d, Y H:i" }}</td>
+                                        <td>{{ sale.customer.full_name|default:"Walk-in Customer" }}</td>
+                                        <td>{{ business.currency_symbol }} {{ sale.total_amount|floatformat:2 }}</td>
+                                        <td>
+                                            {% if sale.status == 'completed' %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% elif sale.status == 'refunded' %}
+                                                <span class="badge bg-danger">Refunded</span>
+                                            {% elif sale.status == 'partially_refunded' %}
+                                                <span class="badge bg-warning">Partial Refund</span>
+                                            {% elif sale.status == 'cancelled' %}
+                                                <span class="badge bg-secondary">Cancelled</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <p class="mb-0">No sales recorded yet</p>
+                                            <a href="{% url 'pos' %}" class="btn btn-sm btn-primary mt-2">Create Sale</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Top Selling Products</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for product in top_products %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ product.product__name }}</h6>
+                                    <span class="badge bg-primary">{{ product.total_quantity }} sold</span>
+                                </div>
+                                <small class="text-muted">{{ business.currency_symbol }} {{ product.total_sales|floatformat:2 }} in sales</small>
+                            </div>
+                        {% empty %}
+                            <div class="list-group-item text-center py-4">
+                                <i class="fas fa-shopping-cart text-muted mb-2" style="font-size: 2rem;"></i>
+                                <p class="mb-0">No sales data available yet</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sales Chart
+        const salesCtx = document.getElementById('salesChart').getContext('2d');
+        
+        // Extract data from Django
+        const salesData = JSON.parse('{{ daily_sales|escapejs }}');
+        
+        // Format dates and prepare datasets
+        const dates = salesData.map(item => new Date(item.day).toLocaleDateString());
+        const amounts = salesData.map(item => item.total);
+        const counts = salesData.map(item => item.count);
+        
+        const salesChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Sales Amount',
+                        data: amounts,
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: 'rgba(52, 152, 219, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                const transactions = counts[index];
+                                return [
+                                    `Amount: ${context.dataset.label} ${context.parsed.y.toFixed(2)}`,
+                                    `Transactions: ${transactions}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '{{ business.currency_symbol }} ' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
