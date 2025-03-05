@@ -26,10 +26,33 @@
             <h5 class="card-title">Purchase Information</h5>
             <p><strong>Supplier:</strong> {{ purchase.supplier.name }}</p>
             <p><strong>Reference Number:</strong> {{ purchase.reference_number }}</p>
-            <p><strong>Status:</strong> {{ purchase.status }}</p>
+            <p><strong>Status:</strong> {{ purchase.status|title }}</p>
             <p><strong>Total Amount:</strong> {{ business.currency_symbol }} {{ purchase.total_amount|floatformat:2 }}</p>
             <p><strong>Notes:</strong> {{ purchase.notes }}</p>
             <p><strong>Date Created:</strong> {{ purchase.created_at|date:"Y-m-d H:i" }}</p>
+
+            <div class="mt-4">
+                {% if purchase.status == "pending" or purchase.status == "partially_received" %}
+                    <a href="{% url 'purchase_receive' purchase.id %}" class="btn btn-success">
+                        <i class="fas fa-check-circle me-1"></i> Receive Purchase
+                    </a>
+                    {% if purchase.status == "pending" %}
+                        <a href="{% url 'purchase_cancel' purchase.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this purchase?');">
+                            <i class="fas fa-times-circle me-1"></i> Cancel Purchase
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'purchase_add_items' purchase.id %}" class="btn btn-secondary">
+                        <i class="fas fa-plus-circle me-1"></i> Add Items
+                    </a>
+                {% endif %}
+                {% if purchase.status == "received" %}
+                    <span class="badge bg-success">Purchase Received</span>
+                {% elif purchase.status == "partially_received" %}
+                    <span class="badge bg-warning">Partially Received</span>
+                {% elif purchase.status == "cancelled" %}
+                    <span class="badge bg-danger">Purchase Cancelled</span>
+                {% endif %}
+            </div>
         </div>
     </div>
 
