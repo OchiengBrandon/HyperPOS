@@ -946,38 +946,61 @@ footer {
     }
 }
 
+/* Base styles for mobile menu */
+.mobile-menu {
+    display: none; /* Hide by default */
+    position: fixed;
+    top: 70px; /* Adjust based on your header height */
+    left: 0;
+    width: 100%;
+    background-color: var(--card-bg);
+    padding: 20px;
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition);
+    z-index: 999;
+}
+
+.mobile-menu.active {
+    display: block; /* Show when active */
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Mobile menu button */
+.mobile-menu-btn {
+    display: none; /* Hide by default */
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
 @media (max-width: 768px) {
     nav ul {
-        display: none;
+        display: none; /* Hide desktop navigation */
     }
 
     .mobile-menu-btn {
-        display: block;
+        display: block; /* Show mobile menu button */
     }
 
     .mobile-menu {
-        position: fixed;
-        top: 70px;
-        left: 0;
-        width: 100%;
-        background-color: var(--card-bg);
-        padding: 20px;
-        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
-        transform: translateY(-100%);
-        opacity: 0;
-        visibility: hidden;
-        transition: var(--transition);
-        z-index: 999;
+        display: none; /* Hide mobile menu on large displays */
     }
 
     .mobile-menu.active {
-        transform: translateY(0);
-        opacity: 1;
-        visibility: visible;
+        display: block; /* Show mobile menu when active */
     }
 
     .mobile-menu ul {
         list-style: none;
+        padding: 0;
+        margin: 0;
     }
 
     .mobile-menu li {
@@ -1031,6 +1054,41 @@ footer {
 
     .step-content:hover {
         transform: none;
+    }
+}
+
+/* Additional media query adjustments for smaller devices */
+@media (max-width: 576px) {
+    .header-container {
+        padding: 15px 10px;
+    }
+
+    .logo h1 {
+        font-size: 1.5rem;
+    }
+
+    .hero h1 {
+        font-size: 1.8rem;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+    }
+
+    .cta h2 {
+        font-size: 1.8rem;
+    }
+
+    .feature-card, .pricing-card, .testimonial {
+        padding: 20px;
+    }
+
+    .pricing-card.popular {
+        transform: none;
+    }
+
+    .pricing-card.popular:hover {
+        transform: translateY(-10px);
     }
 }
 
