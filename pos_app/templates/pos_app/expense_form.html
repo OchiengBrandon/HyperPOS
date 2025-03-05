@@ -1,0 +1,72 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ title }}</h1>
+        <div>
+            <a href="{% url 'expense_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Expenses
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                    {{ form.date|add_class:"form-control" }}
+                    {% if form.date.errors %}
+                        <div class="text-danger mt-1">{{ form.date.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.category.id_for_label }}" class="form-label">Category</label>
+                    {{ form.category|add_class:"form-select" }}
+                    {% if form.category.errors %}
+                        <div class="text-danger mt-1">{{ form.category.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                    {{ form.description|add_class:"form-control" }}
+                    {% if form.description.errors %}
+                        <div class="text-danger mt-1">{{ form.description.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.amount.id_for_label }}" class="form-label">Amount</label>
+                    {{ form.amount|add_class:"form-control" }}
+                    {% if form.amount.errors %}
+                        <div class="text-danger mt-1">{{ form.amount.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.receipt.id_for_label }}" class="form-label">Receipt</label>
+                    {{ form.receipt|add_class:"form-control" }}
+                    {% if form.receipt.errors %}
+                        <div class="text-danger mt-1">{{ form.receipt.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'expense_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check-circle me-1"></i> Create Expense
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

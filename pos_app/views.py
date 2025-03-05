@@ -1790,6 +1790,8 @@ def expense_list(request):
     
     return render(request, 'pos_app/expenses.html', context)
 
+
+
 @login_required
 def expense_create(request):
     business = get_business_for_user(request.user)
@@ -1801,7 +1803,7 @@ def expense_create(request):
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to create expenses')
         return redirect('expense_list')
-    
+
     if request.method == 'POST':
         form = ExpenseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -1812,6 +1814,7 @@ def expense_create(request):
             messages.success(request, 'Expense has been created successfully')
             return redirect('expense_list')
     else:
+        # Initialize the form with the current date
         form = ExpenseForm(initial={'date': timezone.now().date()})
     
     context = {
@@ -1819,6 +1822,7 @@ def expense_create(request):
         'role': role,
         'form': form,
         'title': 'Create Expense',
+        'current_date': timezone.now().date(),  # Pass the current date for use in the template if needed
     }
     
     return render(request, 'pos_app/expense_form.html', context)
