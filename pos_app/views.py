@@ -88,6 +88,7 @@ def login_view(request):
 
 # Business setup
 
+
 @login_required
 def business_setup(request):
     # Check if the user already has a business

@@ -1,0 +1,106 @@
+<!-- pos_app/templates/pos_app/cashier_dashboard.html -->
+{% extends 'pos_app/cashier_base.html' %}
+
+{% block title %}Cashier Dashboard{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <h1 class="page-title">Cashier Dashboard</h1>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Total Sales</h5>
+                </div>
+                <div class="card-body">
+                    <h2>${{ total_sales|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Average Sale</h5>
+                </div>
+                <div class="card-body">
+                    <h2>${{ avg_sale|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Total Products</h5>
+                </div>
+                <div class="card-body">
+                    <h2>{{ product_count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Sales</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for sale in recent_sales %}
+                            <li class="list-group-item">
+                                <strong>{{ sale.created_at|date:"Y-m-d H:i" }}</strong> - ${{ sale.total_amount|floatformat:2 }}
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">No recent sales found.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Top Selling Products</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for product in top_products %}
+                            <li class="list-group-item">
+                                {{ product.product__name }} - Sold: {{ product.total_quantity }} - ${{ product.total_sales|floatformat:2 }}
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">No top products found.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Low Stock Products</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for product in low_stock_products %}
+                            <li class="list-group-item">
+                                {{ product.name }} - Stock: {{ product.stock_quantity }}
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">All products are sufficiently stocked.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
