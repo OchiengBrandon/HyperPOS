@@ -1,0 +1,50 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Sale Detail - {{ sale.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Sale Detail</h1>
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Invoice Number: {{ sale.invoice_number }}</h5>
+            <p><strong>Customer:</strong> {{ sale.customer.full_name }}</p>
+            <p><strong>Total Amount:</strong> ${{ sale.total_amount|floatformat:2 }}</p>
+            <p><strong>Tax Amount:</strong> ${{ sale.tax_amount|floatformat:2 }}</p>
+            <p><strong>Discount Amount:</strong> ${{ sale.discount_amount|floatformat:2 }}</p>
+            <p><strong>Status:</strong> {{ sale.status }}</p>
+            <p><strong>Date:</strong> {{ sale.created_at|date:"Y-m-d H:i" }}</p>
+            <p><strong>Served By:</strong> {{ sale.employee }}</p>
+            
+            <h5>Items Sold</h5>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>${{ item.unit_price|floatformat:2 }}</td>
+                            <td>${{ item.subtotal|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No items found for this sale.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <a href="{% url 'sales_list' %}" class="btn btn-primary mt-3">Back to Sales List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
