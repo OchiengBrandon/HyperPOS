@@ -1,0 +1,106 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Inventory List{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Inventory List</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="mb-4">
+        <a href="{% url 'inventory_adjust' %}" class="btn btn-primary">
+            <i class="fas fa-boxes me-1"></i> Adjust Stock
+        </a>
+    </div>
+
+    <form method="get" class="mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="product">Product</label>
+                <select id="product" name="product" class="form-control">
+                    <option value="">All Products</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}" {% if product.id == product_id %}selected{% endif %}>{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="transaction_type">Transaction Type</label>
+                <select id="transaction_type" name="transaction_type" class="form-control">
+                    <option value="">All Transaction Types</option>
+                    <option value="purchase" {% if transaction_type == 'purchase' %}selected{% endif %}>Purchase</option>
+                    <option value="return" {% if transaction_type == 'return' %}selected{% endif %}>Return</option>
+                    <option value="adjustment" {% if transaction_type == 'adjustment' %}selected{% endif %}>Adjustment</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}" placeholder="Select start date">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}" placeholder="Select end date">
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Transaction Type</th>
+                        <th>Date</th>
+                        <th>Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory %}
+                        <tr>
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.get_transaction_type_display }}</td>
+                            <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>{{ item.reference }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No inventory records found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="d-flex justify-content-between">
+                <div>
+                    <span>Page {{ inventory.number }} of {{ inventory.paginator.num_pages }}</span>
+                </div>
+                <div>
+                    {% if inventory.has_previous %}
+                        <a href="?page=1&product={{ product_id }}&transaction_type={{ transaction_type }}&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-outline-secondary">First</a>
+                        <a href="?page={{ inventory.previous_page_number }}&product={{ product_id }}&transaction_type={{ transaction_type }}&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-outline-secondary">Previous</a>
+                    {% endif %}
+                    {% if inventory.has_next %}
+                        <a href="?page={{ inventory.next_page_number }}&product={{ product_id }}&transaction_type={{ transaction_type }}&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-outline-secondary">Next</a>
+                        <a href="?page={{ inventory.paginator.num_pages }}&product={{ product_id }}&transaction_type={{ transaction_type }}&start_date={{ start_date }}&end_date={{ end_date }}" class="btn btn-outline-secondary">Last</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
