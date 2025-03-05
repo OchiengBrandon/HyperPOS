@@ -1,0 +1,80 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ title }}</h1>
+        <div>
+            <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Customers
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                    {{ form.first_name|add_class:"form-control" }}
+                    {% if form.first_name.errors %}
+                        <div class="text-danger mt-1">{{ form.first_name.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                    {{ form.last_name|add_class:"form-control" }}
+                    {% if form.last_name.errors %}
+                        <div class="text-danger mt-1">{{ form.last_name.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                    {{ form.email|add_class:"form-control" }}
+                    {% if form.email.errors %}
+                        <div class="text-danger mt-1">{{ form.email.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
+                    {{ form.phone|add_class:"form-control" }}
+                    {% if form.phone.errors %}
+                        <div class="text-danger mt-1">{{ form.phone.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                    {{ form.address|add_class:"form-control" }}
+                    {% if form.address.errors %}
+                        <div class="text-danger mt-1">{{ form.address.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.loyalty_points.id_for_label }}" class="form-label">Loyalty Points</label>
+                    {{ form.loyalty_points|add_class:"form-control" }}
+                    {% if form.loyalty_points.errors %}
+                        <div class="text-danger mt-1">{{ form.loyalty_points.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Customer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
