@@ -53,7 +53,7 @@ urlpatterns = [
     path('sales/<int:pk>/void/', views.sale_void, name='sale_void'),
     path('sales/<int:pk>/refund/', views.sale_refund, name='sale_refund'),
     
-    # Inventory
+    # Inventory 
     path('inventory/', views.inventory_list, name='inventory_list'),
     path('inventory/adjust/', views.inventory_adjust, name='inventory_adjust'),
     
