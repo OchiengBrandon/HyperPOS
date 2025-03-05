@@ -1,0 +1,62 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Receive Purchase{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Receive Purchase #{{ purchase.id }}</h1>
+        <div>
+            <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Purchases
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <h5 class="card-title">Items in Purchase</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Received Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>
+                                        <input type="number" name="received_qty_{{ item.id }}" class="form-control" min="0" max="{{ item.quantity|add:'0' }}" value="{{ item.received_quantity }}">
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle me-1"></i> Receive Items
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

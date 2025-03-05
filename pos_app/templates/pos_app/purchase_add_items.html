@@ -1,0 +1,123 @@
+{% extends 'pos_app/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Add Items to Purchase{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Add Items to Purchase #{{ purchase.id }}</h1>
+        <div>
+            <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Purchases
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="{{ form.product.id_for_label }}" class="form-label">Product</label>
+                    {{ form.product|add_class:"form-control" }}
+                    {% if form.product.errors %}
+                        <div class="text-danger mt-1">{{ form.product.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.quantity.id_for_label }}" class="form-label">Quantity</label>
+                    {{ form.quantity|add_class:"form-control" }}
+                    {% if form.quantity.errors %}
+                        <div class="text-danger mt-1">{{ form.quantity.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.unit_price.id_for_label }}" class="form-label">Unit Price</label>
+                    {{ form.unit_price|add_class:"form-control" }}
+                    {% if form.unit_price.errors %}
+                        <div class="text-danger mt-1">{{ form.unit_price.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.received_quantity.id_for_label }}" class="form-label">Received Quantity</label>
+                    {{ form.received_quantity|add_class:"form-control" }}
+                    {% if form.received_quantity.errors %}
+                        <div class="text-danger mt-1">{{ form.received_quantity.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus-circle me-1"></i> Add Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Existing Items</h5>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Subtotal</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ business.currency_symbol }} {{ item.unit_price|floatformat:2 }}</td>
+                                <td>{{ business.currency_symbol }} {{ item.subtotal|floatformat:2 }}</td>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            Actions
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'purchase_item_edit' item.id %}">
+                                                    <i class="fas fa-edit me-1"></i> Edit
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="{% url 'purchase_item_delete' item.id %}" onclick="return confirm('Are you sure you want to delete this item?');">
+                                                    <i class="fas fa-trash-alt me-1"></i> Delete
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No items added yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

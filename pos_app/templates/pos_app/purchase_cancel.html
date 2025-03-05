@@ -1,0 +1,41 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Cancel Purchase{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Cancel Purchase #{{ purchase.id }}</h1>
+        <div>
+            <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Purchases
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Are you sure you want to cancel this purchase?</h5>
+            <p><strong>Reference Number:</strong> {{ purchase.reference_number }}</p>
+            <p><strong>Status:</strong> {{ purchase.status }}</p>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times-circle me-1"></i> Cancel Purchase
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

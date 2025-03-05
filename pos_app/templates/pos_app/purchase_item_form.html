@@ -1,0 +1,71 @@
+{% extends 'pos_app/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Edit Purchase Item{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Edit Purchase Item for Purchase #{{ item.purchase.id }}</h1>
+        <div>
+            <a href="{% url 'purchase_add_items' item.purchase.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Items
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="{{ form.product.id_for_label }}" class="form-label">Product</label>
+                    {{ form.product|add_class:"form-control" }}
+                    {% if form.product.errors %}
+                        <div class="text-danger mt-1">{{ form.product.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.quantity.id_for_label }}" class="form-label">Quantity</label>
+                    {{ form.quantity|add_class:"form-control" }}
+                    {% if form.quantity.errors %}
+                        <div class="text-danger mt-1">{{ form.quantity.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.unit_price.id_for_label }}" class="form-label">Unit Price</label>
+                    {{ form.unit_price|add_class:"form-control" }}
+                    {% if form.unit_price.errors %}
+                        <div class="text-danger mt-1">{{ form.unit_price.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.received_quantity.id_for_label }}" class="form-label">Received Quantity</label>
+                    {{ form.received_quantity|add_class:"form-control" }}
+                    {% if form.received_quantity.errors %}
+                        <div class="text-danger mt-1">{{ form.received_quantity.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

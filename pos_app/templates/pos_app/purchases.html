@@ -1,0 +1,153 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Purchases{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Purchases</h1>
+        <div>
+            <a href="{% url 'purchase_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-1"></i> Add Purchase
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="supplier" class="form-label">Supplier</label>
+                    <select id="supplier" name="supplier" class="form-select">
+                        <option value="">All Suppliers</option>
+                        {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if supplier.id|stringformat:'s' == supplier_id %}selected{% endif %}>{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> Filter
+                    </button>
+                    <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Purchases Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Supplier</th>
+                            <th>Status</th>
+                            <th>Total Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for purchase in purchases %}
+                            <tr>
+                                <td>{{ purchase.created_at|date:"Y-m-d" }}</td>
+                                <td>{{ purchase.supplier.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if purchase.status == 'completed' %}success{% else %}warning{% endif %}">{{ purchase.status }}</span>
+                                </td>
+                                <td>{{ business.currency_symbol }} {{ purchase.total_amount|floatformat:2 }}</td>
+                                <td>
+                                    <a href="{% url 'purchase_detail' purchase.id %}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{% url 'purchase_add_items' purchase.id %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-plus-circle"></i> Add Items
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No purchases found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        {% if purchases.has_other_pages %}
+            <div class="card-footer">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if purchases.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if supplier_id %}&supplier={{ supplier_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ purchases.previous_page_number }}{% if supplier_id %}&supplier={{ supplier_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for i in purchases.paginator.page_range %}
+                            {% if purchases.number == i %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ i }}</span>
+                                </li>
+                            {% elif i > purchases.number|add:'-3' and i < purchases.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}{% if supplier_id %}&supplier={{ supplier_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ i }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if purchases.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ purchases.next_page_number }}{% if supplier_id %}&supplier={{ supplier_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ purchases.paginator.num_pages }}{% if supplier_id %}&supplier={{ supplier_id }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

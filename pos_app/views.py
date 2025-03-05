@@ -1456,6 +1456,8 @@ def purchase_list(request):
     
     return render(request, 'pos_app/purchases.html', context)
 
+
+
 @login_required
 def purchase_create(request):
     business = get_business_for_user(request.user)
@@ -1478,6 +1480,10 @@ def purchase_create(request):
             
             # Redirect to add items
             return redirect('purchase_add_items', pk=purchase.pk)
+        else:
+            # Log form errors to the terminal
+            print("Purchase Form Errors:", form.errors)  # Display errors in the terminal
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = PurchaseForm(business=business)
     
@@ -1489,6 +1495,7 @@ def purchase_create(request):
     }
     
     return render(request, 'pos_app/purchase_form.html', context)
+
 
 @login_required
 def purchase_add_items(request, pk):
@@ -1518,6 +1525,10 @@ def purchase_add_items(request, pk):
             
             messages.success(request, f'Item "{item.product.name}" has been added to the purchase')
             return redirect('purchase_add_items', pk=purchase.pk)
+        else:
+            # Log form errors to the terminal
+            print("Purchase Item Form Errors:", form.errors)  # Display errors in the terminal
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = PurchaseItemForm(business=business)
     
@@ -1533,6 +1544,63 @@ def purchase_add_items(request, pk):
     }
     
     return render(request, 'pos_app/purchase_add_items.html', context)
+
+
+@login_required
+def purchase_item_edit(request, item_id):
+    # Get the business for the logged-in user
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('business_setup')
+
+    # Retrieve the purchase item for editing
+    item = get_object_or_404(PurchaseItem, id=item_id, purchase__business=business)
+
+    if request.method == 'POST':
+        form = PurchaseItemForm(request.POST, instance=item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Item "{item.product.name}" has been updated successfully.')
+            return redirect('purchase_add_items', pk=item.purchase.pk)
+        else:
+            # Log form errors for debugging
+            print("Edit Purchase Item Form Errors:", form.errors)
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = PurchaseItemForm(instance=item)
+
+    context = {
+        'business': business,
+        'form': form,
+        'item': item,
+        'title': 'Edit Purchase Item',
+    }
+
+    return render(request, 'pos_app/purchase_item_form.html', context)
+
+
+@login_required
+def purchase_item_delete(request, item_id):
+    # Get the business for the logged-in user
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('business_setup')
+
+    # Retrieve the purchase item for deletion
+    item = get_object_or_404(PurchaseItem, id=item_id, purchase__business=business)
+
+    if request.method == 'POST':
+        # Delete the item
+        item.delete()
+        messages.success(request, f'Item "{item.product.name}" has been deleted successfully.')
+        return redirect('purchase_add_items', pk=item.purchase.pk)
+
+    # If GET, render a confirmation page (optional)
+    context = {
+        'item': item,
+        'business': business,
+    }
+    return render(request, 'pos_app/purchase_item_confirm_delete.html', context)
 
 @login_required
 def purchase_detail(request, pk):

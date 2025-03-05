@@ -1,0 +1,22 @@
+{% extends 'pos_app/base.html' %}
+{% load custom_filters %}
+
+{% block title %}Delete Purchase Item{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-0 text-gray-800">Delete Purchase Item</h1>
+
+    <div class="alert alert-warning">
+        <strong>Warning!</strong> Are you sure you want to delete the item "{{ item.product.name }}"?
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button type="submit" class="btn btn-danger">Delete</button>
+            <a href="{% url 'purchase_add_items' item.purchase.id %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
