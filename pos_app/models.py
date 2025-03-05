@@ -72,7 +72,8 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
-
+from django.core.validators import MinValueValidator
+from django.db import models
 
 class Product(models.Model):
     UNIT_CHOICES = [
