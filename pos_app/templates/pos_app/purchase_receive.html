@@ -42,7 +42,7 @@
                                     <td>{{ item.product.name }}</td>
                                     <td>{{ item.quantity }}</td>
                                     <td>
-                                        <input type="number" name="received_qty_{{ item.id }}" class="form-control" min="0" max="{{ item.quantity|add:'0' }}" value="{{ item.received_quantity }}">
+                                        <input type="number" name="received_qty_{{ item.id }}" class="form-control" min="0" max="{{ item.quantity|add:'0' }}" value="{{ item.received_quantity }}" title="Received Quantity" placeholder="Enter received quantity">
                                     </td>
                                 </tr>
                             {% endfor %}

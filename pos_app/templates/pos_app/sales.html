@@ -20,13 +20,16 @@
                 <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ search_query }}">
             </div>
             <div class="col-md-3">
-                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}" title="Start Date">
             </div>
             <div class="col-md-3">
-                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                <label for="end_date">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}" title="End Date">
             </div>
             <div class="col-md-3">
-                <select name="status" class="form-control">
+                <label for="status">Status</label>
+                <select id="status" name="status" class="form-control">
                     <option value="">All Statuses</option>
                     <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
                     <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
@@ -36,7 +39,8 @@
         </div>
         <div class="row mt-2">
             <div class="col-md-3">
-                <select name="payment_method" class="form-control">
+                <label for="payment_method">Payment Method</label>
+                <select id="payment_method" name="payment_method" class="form-control">
                     <option value="">All Payment Methods</option>
                     <option value="credit_card" {% if payment_method == 'credit_card' %}selected{% endif %}>Credit Card</option>
                     <option value="cash" {% if payment_method == 'cash' %}selected{% endif %}>Cash</option>
