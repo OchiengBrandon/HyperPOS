@@ -53,7 +53,7 @@ class IndexView(TemplateView):
         context['pricing_plans'] = [
             {
                 'name': 'Starter',
-                'price': 29,
+                'price': 1200,
                 'popular': False,
                 'features': [
                     'Single register',
@@ -65,7 +65,7 @@ class IndexView(TemplateView):
             },
             {
                 'name': 'Professional',
-                'price': 59,
+                'price': 4000,
                 'popular': True,
                 'features': [
                     'Up to 3 registers',
@@ -78,7 +78,7 @@ class IndexView(TemplateView):
             },
             {
                 'name': 'Enterprise',
-                'price': 99,
+                'price': 7500,
                 'popular': False,
                 'features': [
                     'Unlimited registers',
@@ -158,10 +158,10 @@ class IndexView(TemplateView):
         
         # Contact information
         context['contact_info'] = {
-            'address': '123 Business Avenue, Tech City, TC 10101',
-            'phone': '+1 (555) 123-4567',
-            'email': 'info@hyperpos.com',
-            'hours': 'Mon-Fri: 9AM - 5PM EST'
+            'address': 'Moi Avenue, Bungoma, TC 10101',
+            'phone': '+254 (705) 980-652',
+            'email': 'brandonochieng72@gmail.com',
+            'hours': 'Mon-SAT: 9AM - 5PM EST'
         }
         
         # Social media links
@@ -175,16 +175,6 @@ class IndexView(TemplateView):
         return context
 
 
-class POSRedirectView(View):
-    """
-    View to redirect users to the actual POS application.
-    If user is not authenticated, redirects to login page.
-    """
-    @method_decorator(login_required)
-    def get(self, request):
-        # This would redirect to your actual POS application
-        # You might have different logic based on user type or subscription
-        return redirect('pos:login')
 
 
 class ContactView(View):
