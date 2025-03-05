@@ -677,7 +677,7 @@ def customer_create(request):
             customer.business = business
             customer.save()
             messages.success(request, f'Customer "{customer.full_name}" has been created')
-            return redirect('customer_list')
+            return redirect('pos:customer_list')
     else:
         form = CustomerForm()
     
