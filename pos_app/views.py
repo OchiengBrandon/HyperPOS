@@ -835,6 +835,27 @@ def employee_create(request):
     
     return render(request, 'pos_app/employee_form.html', context)
 
+
+@login_required
+def employee_delete(request, employee_id):
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('business_setup')
+
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin']:
+        messages.error(request, 'You do not have permission to delete employees')
+        return redirect('employee_list')
+
+    # Get the employee object
+    employee = get_object_or_404(Employee, id=employee_id, business=business)
+
+    # Delete the employee
+    employee.delete()
+    messages.success(request, f'Employee "{employee.user.get_full_name()}" has been deleted')
+    return redirect('employee_list')
+
 @login_required
 def employee_edit(request, pk):
     business = get_business_for_user(request.user)
