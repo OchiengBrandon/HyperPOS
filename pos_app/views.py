@@ -1790,8 +1790,6 @@ def expense_list(request):
     
     return render(request, 'pos_app/expenses.html', context)
 
-
-
 @login_required
 def expense_create(request):
     business = get_business_for_user(request.user)
@@ -1803,7 +1801,7 @@ def expense_create(request):
     if role not in ['owner', 'admin', 'manager']:
         messages.error(request, 'You do not have permission to create expenses')
         return redirect('expense_list')
-
+    
     if request.method == 'POST':
         form = ExpenseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -1814,7 +1812,6 @@ def expense_create(request):
             messages.success(request, 'Expense has been created successfully')
             return redirect('expense_list')
     else:
-        # Initialize the form with the current date
         form = ExpenseForm(initial={'date': timezone.now().date()})
     
     context = {
@@ -1822,7 +1819,6 @@ def expense_create(request):
         'role': role,
         'form': form,
         'title': 'Create Expense',
-        'current_date': timezone.now().date(),  # Pass the current date for use in the template if needed
     }
     
     return render(request, 'pos_app/expense_form.html', context)
@@ -2123,37 +2119,54 @@ def export_inventory_report(request):
     
     return response
 
+import logging
+from django.contrib import messages
+from django.shortcuts import redirect, render
+from django.contrib.auth.decorators import login_required
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Settings
 @login_required
 def settings_view(request):
     business = get_business_for_user(request.user)
     if not business:
         return redirect('business_setup')
-    
+
     # Get user role
     role = get_user_role(request.user, business)
     if role not in ['owner', 'admin']:
         messages.error(request, 'You do not have permission to access settings')
         return redirect('dashboard')
-    
+
     if request.method == 'POST':
         business_form = BusinessForm(request.POST, request.FILES, instance=business)
         settings_form = BusinessSettingsForm(request.POST, instance=business.settings)
-        
+
+        # Validate forms
         if business_form.is_valid() and settings_form.is_valid():
             business_form.save()
             settings_form.save()
             messages.success(request, 'Settings have been updated successfully')
             return redirect('settings')
+        else:
+            # Log form errors to the terminal
+            logger.error("Form validation errors: %s", {
+                'business_form_errors': business_form.errors,
+                'settings_form_errors': settings_form.errors
+            })
+            messages.error(request, 'Please correct the errors below.')
+
     else:
         business_form = BusinessForm(instance=business)
         settings_form = BusinessSettingsForm(instance=business.settings)
-    
+
     context = {
         'business': business,
         'role': role,
         'business_form': business_form,
         'settings_form': settings_form,
     }
-    
+
     return render(request, 'pos_app/settings.html', context)

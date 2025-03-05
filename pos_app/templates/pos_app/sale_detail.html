@@ -48,6 +48,7 @@
                 <div>
                     <a href="{% url 'sale_void' sale.id %}" class="btn btn-warning" onclick="return confirm('Are you sure you want to void this sale?');">Void Sale</a>
                     <a href="{% url 'sale_refund' sale.id %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to refund this sale?');">Refund Sale</a>
+                    <a href="{% url 'get_receipt' sale.id %}" class="btn btn-info">View Receipt</a> <!-- Link to view the receipt -->
                 </div>
             </div>
         </div>
