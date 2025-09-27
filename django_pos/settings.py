@@ -27,6 +27,9 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_ENV.split(',')]
 
+# CSRF trusted origins for cross-origin requests
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -140,6 +143,21 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+
+# Additional CORS settings for better cross-origin support
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_ALLOW_ALL_ORIGINS = False  # Use specific origins for security
 
 # Email configuration
 if os.getenv('EMAIL_HOST'):
