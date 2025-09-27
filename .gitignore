@@ -22,6 +22,7 @@ passenger_wsgi.py
 # Static files
 staticfiles/
 static_collected/
+public_html/
 
 # Media files (uncomment if you don't want to track user uploads)
 # media/
