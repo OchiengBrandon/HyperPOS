@@ -22,6 +22,10 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 # Environment
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
+# Environment detection - only CPANEL and LOCAL
+CPANEL = os.getenv('CPANEL', 'False').lower() == 'true'
+LOCAL = not CPANEL
+
 # Allowed hosts
 ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_ENV.split(',')]
@@ -47,7 +51,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
+] + (['whitenoise.middleware.WhiteNoiseMiddleware'] if CPANEL else []) + [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -174,14 +178,16 @@ email_config = get_email_config()
 for key, value in email_config.items():
     globals()[key] = value
 
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = os.getenv('STATIC_URL', '/static/')
-
 # Static Files Configuration
-if os.getenv('ENVIRONMENT') == 'production':
-    STATIC_ROOT = os.getenv('STATIC_ROOT', os.path.join(BASE_DIR, 'public_html', 'static'))
+STATIC_URL = '/static/'
+
+if CPANEL:
+    # For cPanel, static files should be in public_html/static
+    STATIC_ROOT = os.path.join(BASE_DIR, 'public_html', 'static')
+    # Use whitenoise for cPanel to handle static files properly
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 else:
+    # Local development
     STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_DIRS = [
@@ -194,10 +200,10 @@ STATICFILES_FINDERS = [
 ]
 
 # Media Files Configuration
-MEDIA_URL = os.getenv('MEDIA_URL', '/media/')
+MEDIA_URL = '/media/'
 
-if os.getenv('ENVIRONMENT') == 'production':
-    MEDIA_ROOT = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'public_html', 'media'))
+if CPANEL:
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'public_html', 'media')
 else:
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -275,7 +281,7 @@ REST_FRAMEWORK = {
 }
 
 # WhiteNoise configuration for static files
-if os.getenv('ENVIRONMENT') == 'production':
+if CPANEL:
     # Whitenoise settings for production
     WHITENOISE_USE_FINDERS = True
     WHITENOISE_AUTOREFRESH = DEBUG

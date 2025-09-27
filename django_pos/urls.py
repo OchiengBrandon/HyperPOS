@@ -5,6 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
 from django.views.generic import RedirectView
+import os
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,14 +15,11 @@ urlpatterns = [
     path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
 ]
 
-# Serve media and static files 
-if settings.DEBUG:
-    # Development - serve from STATICFILES_DIRS
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-    urlpatterns += staticfiles_urlpatterns()
-else:
-    # Production - serve from STATIC_ROOT (for cPanel/Passenger compatibility)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# Static and media files
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Only serve media files through Django in development
+# On cPanel, Apache serves media files directly from public_html/media/
+if not getattr(settings, 'CPANEL', False):
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
