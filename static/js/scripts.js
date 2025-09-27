@@ -1,4 +1,4 @@
-// Theme Toggle
+// Theme Toggle T
 const themeToggle = document.getElementById('themeToggle');
 const themeIcon = themeToggle.querySelector('i');
 const body = document.body;
