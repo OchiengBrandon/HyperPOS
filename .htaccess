@@ -1,0 +1,47 @@
+# .htaccess for Django cPanel deployment
+RewriteEngine On
+
+# Handle static files with proper MIME types
+<FilesMatch "\.(css)$">
+    AddType text/css .css
+</FilesMatch>
+
+<FilesMatch "\.(js)$">
+    AddType application/javascript .js
+</FilesMatch>
+
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico)$">
+    AddType image/ .png .jpg .jpeg .gif .svg .ico
+</FilesMatch>
+
+<FilesMatch "\.(woff|woff2|ttf|eot)$">
+    AddType font/ .woff .woff2 .ttf .eot
+</FilesMatch>
+
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# Cache static files
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType font/woff "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+</IfModule>
+
+# Django application
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ passenger_wsgi.py [L]
