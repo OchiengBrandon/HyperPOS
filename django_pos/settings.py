@@ -190,7 +190,9 @@ def get_static_media_config():
         # Static files are collected to the Django app directory
         static_root = os.getenv('STATIC_ROOT', '/home1/naviposc/pos.navipos.co.ke/static')
         media_root = os.getenv('MEDIA_ROOT', '/home1/naviposc/pos.navipos.co.ke/media')
-        return static_root, media_root, []
+        # Include staticfiles dirs for collectstatic to find source files
+        staticfiles_dirs = [os.path.join(BASE_DIR, 'static')]
+        return static_root, media_root, staticfiles_dirs
     else:
         # Local development configuration
         static_root = os.path.join(BASE_DIR, 'staticfiles')

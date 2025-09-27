@@ -26,6 +26,17 @@ try:
     print(f"MIDDLEWARE: {settings.MIDDLEWARE}")
     print()
     
+    # Check source static files directory
+    if hasattr(settings, 'STATICFILES_DIRS') and settings.STATICFILES_DIRS:
+        source_static = Path(settings.STATICFILES_DIRS[0])
+        print(f"Source static dir exists: {source_static.exists()}")
+        if source_static.exists():
+            source_css = list(source_static.glob('**/*.css'))
+            source_js = list(source_static.glob('**/*.js'))
+            print(f"Source CSS files: {[f.name for f in source_css]}")
+            print(f"Source JS files: {[f.name for f in source_js]}")
+    print()
+    
     # Check if static root exists and has files
     static_root = Path(settings.STATIC_ROOT)
     print(f"Static root exists: {static_root.exists()}")
@@ -36,11 +47,26 @@ try:
         print(f"CSS files found: {len(css_files)}")
         print(f"JS files found: {len(js_files)}")
         
+        # Show actual CSS and JS file names
+        print("Actual CSS files:")
+        for css_file in css_files[:10]:  # Show first 10
+            print(f"  - {css_file.relative_to(static_root)}")
+        if len(css_files) > 10:
+            print(f"  ... and {len(css_files) - 10} more")
+            
+        print("Actual JS files:")
+        for js_file in js_files[:10]:  # Show first 10
+            print(f"  - {js_file.relative_to(static_root)}")
+        if len(js_files) > 10:
+            print(f"  ... and {len(js_files) - 10} more")
+        
         # Check for specific files that are failing
         core_css = static_root / 'css' / 'core.css'
         scripts_js = static_root / 'js' / 'scripts.js'
+        base_css = static_root / 'css' / 'base.css'
         
         print(f"core.css exists: {core_css.exists()}")
+        print(f"base.css exists: {base_css.exists()}")
         print(f"scripts.js exists: {scripts_js.exists()}")
         
         if core_css.exists():
