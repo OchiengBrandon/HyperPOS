@@ -146,21 +146,44 @@ def dashboard(request):
         status='completed'
     )
     
-    # Daily sales data
-    daily_sales = sales.annotate(
-        day=TruncDay('created_at')
-    ).values('day').annotate(
-        total=Sum('total_amount'),
-        count=Count('id')
-    ).order_by('day')
+    # Daily sales data - use manual approach to avoid MySQL timezone issues
+    from django.utils import timezone as django_timezone
+    daily_sales = []
+    
+    # Get date range for the last 30 days
+    today = timezone.now().date()
+    start_date = today - timedelta(days=29)  # 30 days including today
+    
+    current_date = start_date
+    while current_date <= today:
+        day_start = django_timezone.make_aware(
+            datetime.combine(current_date, datetime.min.time())
+        )
+        day_end = django_timezone.make_aware(
+            datetime.combine(current_date, datetime.max.time())
+        )
+        day_sales = sales.filter(
+            created_at__gte=day_start,
+            created_at__lte=day_end
+        )
+        daily_sales.append({
+            'day': current_date,
+            'total': day_sales.aggregate(total=Sum('total_amount'))['total'] or 0,
+            'count': day_sales.count()
+        })
+        current_date = current_date + timedelta(days=1)
     
     # Calculate total sales, average sale value, and product count
     total_sales = sales.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     avg_sale = total_sales / sales.count() if sales.count() > 0 else 0
     product_count = Product.objects.filter(business=business).count()
     
-    # Low stock products
-    low_stock_threshold = business.settings.low_stock_threshold
+    # Low stock products - safely get threshold
+    try:
+        low_stock_threshold = business.settings.low_stock_threshold
+    except (AttributeError, business.settings.model.DoesNotExist):
+        low_stock_threshold = 5  # Default threshold
+    
     low_stock_products = Product.objects.filter(
         business=business,
         stock_quantity__lte=low_stock_threshold,
@@ -189,7 +212,7 @@ def dashboard(request):
         'avg_sale': avg_sale,
         'product_count': product_count,
         'sales_count': sales.count(),
-        'daily_sales': list(daily_sales),
+        'daily_sales': daily_sales,
         'low_stock_products': low_stock_products,
         'recent_sales': recent_sales,
         'top_products': top_products,
