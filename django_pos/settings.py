@@ -277,8 +277,12 @@ REST_FRAMEWORK = {
 }
 
 # WhiteNoise settings for static files serving in production
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Use simple static files storage for cPanel compatibility
+if ENVIRONMENT == 'production':
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # WhiteNoise configuration
 WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = True
+WHITENOISE_AUTOREFRESH = True if not (ENVIRONMENT == 'production') else False

@@ -14,10 +14,14 @@ urlpatterns = [
     path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
 ]
 
-# Serve media and static files during development
+# Serve media and static files 
 if settings.DEBUG:
+    # Development - serve from STATICFILES_DIRS
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    # For development, serve static files from STATICFILES_DIRS
     from django.contrib.staticfiles.urls import staticfiles_urlpatterns
     urlpatterns += staticfiles_urlpatterns()
+else:
+    # Production - serve from STATIC_ROOT (for cPanel/Passenger compatibility)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
