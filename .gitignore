@@ -15,25 +15,15 @@ db.sqlite3-journal
 .env.production.local
 # .env.cpanel - Allow this for deployment template
 
-# Server configuration files - Allow for deployment
-# .htaccess
-# passenger_wsgi.py
+# Server configuration files
+.htaccess
+passenger_wsgi.py
 
-# Static files - only exclude collected/generated directories
+# Static files - exclude collected/generated directories and deployment folder
 staticfiles/
 static_collected/
 public_html/
 
-# Only allow CSS and JS from source static folder, ignore everything else
-static/*
-!static/css/
-!static/js/
-
-# Media files - ignore all user uploads
-media/
-
-# Media files (uncomment if you don't want to track user uploads)
-# media/
 
 # Virtual environments
 venv/
@@ -117,8 +107,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Collected static files
-/staticfiles/
+
 
 # Local development
 *.pid
