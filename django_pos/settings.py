@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -186,8 +187,9 @@ def get_static_media_config():
     
     if is_production:
         # Production configuration for cPanel
-        static_root = os.getenv('STATIC_ROOT', '/pos.navipos.co.ke/static')
-        media_root = os.getenv('MEDIA_ROOT', '/pos.navipos.co.ke/media')
+        # Static files are collected to the Django app directory
+        static_root = os.getenv('STATIC_ROOT', '/home1/naviposc/pos.navipos.co.ke/static')
+        media_root = os.getenv('MEDIA_ROOT', '/home1/naviposc/pos.navipos.co.ke/media')
         return static_root, media_root, []
     else:
         # Local development configuration
@@ -273,3 +275,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
 }
+
+# WhiteNoise settings for static files serving in production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# WhiteNoise configuration
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True

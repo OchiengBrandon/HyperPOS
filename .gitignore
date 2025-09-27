@@ -15,6 +15,10 @@ db.sqlite3-journal
 .env.production.local
 .env.cpanel
 
+# Server configuration files
+.htaccess
+passenger_wsgi.py
+
 # Static files
 staticfiles/
 static_collected/
