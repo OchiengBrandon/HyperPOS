@@ -177,32 +177,29 @@ for key, value in email_config.items():
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = os.getenv('STATIC_URL', '/static/')
 
-# Static and media files configuration - adapts to environment
-def get_static_media_config():
-    # Check environment setting or detect cPanel
-    is_production = (
-        ENVIRONMENT == 'production' or 
-        os.path.exists('/home') and 'public_html' in str(BASE_DIR)
-    )
-    
-    if is_production:
-        # Production configuration for cPanel
-        static_root = os.getenv('STATIC_ROOT', os.path.join(BASE_DIR, 'public_html', 'static'))
-        media_root = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'public_html', 'media'))
-        # In production, include the local static directory so collectstatic can find our files
-        staticfiles_dirs = [os.path.join(BASE_DIR, 'static')]
-        return static_root, media_root, staticfiles_dirs
-    else:
-        # Local development configuration
-        static_root = None  # Not needed in development
-        media_root = os.path.join(BASE_DIR, 'media')
-        staticfiles_dirs = [os.path.join(BASE_DIR, 'static')]
-        return static_root, media_root, staticfiles_dirs
+# Static Files Configuration
+if os.getenv('ENVIRONMENT') == 'production':
+    STATIC_ROOT = os.getenv('STATIC_ROOT', os.path.join(BASE_DIR, 'public_html', 'static'))
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+else:
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-STATIC_ROOT, MEDIA_ROOT, STATICFILES_DIRS = get_static_media_config()
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
-# Media files
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+
+# Media Files Configuration
 MEDIA_URL = os.getenv('MEDIA_URL', '/media/')
+
+if os.getenv('ENVIRONMENT') == 'production':
+    MEDIA_ROOT = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'public_html', 'media'))
+else:
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -277,13 +274,26 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
 }
 
-# WhiteNoise settings for static files serving in production
-# Use simple static files storage for cPanel compatibility
-if ENVIRONMENT == 'production':
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-else:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-
-# WhiteNoise configuration
-WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = True if not (ENVIRONMENT == 'production') else False
+# WhiteNoise configuration for static files
+if os.getenv('ENVIRONMENT') == 'production':
+    # Whitenoise settings for production
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = DEBUG
+    WHITENOISE_MAX_AGE = 31536000  # 1 year
+    
+    # Add MIME types for whitenoise
+    WHITENOISE_MIMETYPES = {
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.ico': 'image/x-icon',
+        '.woff': 'font/woff',
+        '.woff2': 'font/woff2',
+        '.ttf': 'font/ttf',
+        '.eot': 'application/vnd.ms-fontobject',
+    }
