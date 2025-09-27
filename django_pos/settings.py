@@ -175,7 +175,7 @@ for key, value in email_config.items():
     globals()[key] = value
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = '/static/'
+STATIC_URL = os.getenv('STATIC_URL', '/static/')
 
 # Static and media files configuration - adapts to environment
 def get_static_media_config():
@@ -202,7 +202,7 @@ def get_static_media_config():
 STATIC_ROOT, MEDIA_ROOT, STATICFILES_DIRS = get_static_media_config()
 
 # Media files
-MEDIA_URL = '/media/'
+MEDIA_URL = os.getenv('MEDIA_URL', '/media/')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
