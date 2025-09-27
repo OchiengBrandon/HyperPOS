@@ -187,15 +187,14 @@ def get_static_media_config():
     
     if is_production:
         # Production configuration for cPanel
-        # Static files are collected to the Django app directory
-        static_root = os.getenv('STATIC_ROOT', '/home1/naviposc/pos.navipos.co.ke/static')
-        media_root = os.getenv('MEDIA_ROOT', '/home1/naviposc/pos.navipos.co.ke/media')
-        # Include staticfiles dirs for collectstatic to find source files
+        static_root = os.getenv('STATIC_ROOT', os.path.join(BASE_DIR, 'public_html', 'static'))
+        media_root = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'public_html', 'media'))
+        # In production, include the local static directory so collectstatic can find our files
         staticfiles_dirs = [os.path.join(BASE_DIR, 'static')]
         return static_root, media_root, staticfiles_dirs
     else:
         # Local development configuration
-        static_root = os.path.join(BASE_DIR, 'staticfiles')
+        static_root = None  # Not needed in development
         media_root = os.path.join(BASE_DIR, 'media')
         staticfiles_dirs = [os.path.join(BASE_DIR, 'static')]
         return static_root, media_root, staticfiles_dirs
