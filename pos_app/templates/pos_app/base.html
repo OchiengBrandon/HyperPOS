@@ -22,6 +22,9 @@
 
 <body>
     {% if user.is_authenticated and business %}
+    <!-- Mobile Sidebar Overlay -->
+    <div class="mobile-sidebar-overlay" id="mobileOverlay"></div>
+    
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -209,10 +212,66 @@
     
     <script>
         $(document).ready(function() {
-            // Toggle sidebar
+            // Toggle sidebar (works for both desktop and mobile)
             $('#toggle-sidebar').click(function() {
-                $('#sidebar').toggleClass('sidebar-collapsed');
-                $('#main-content').toggleClass('main-content-expanded');
+                if ($(window).width() <= 768) {
+                    // Mobile behavior - show/hide overlay sidebar
+                    $('#sidebar').toggleClass('show');
+                    $('#mobileOverlay').toggleClass('show');
+                    $('body').toggleClass('sidebar-open');
+                } else {
+                    // Desktop behavior - collapse/expand sidebar
+                    $('#sidebar').toggleClass('sidebar-collapsed');
+                    $('#main-content').toggleClass('main-content-expanded');
+                    
+                    // Save state to localStorage
+                    if ($('#sidebar').hasClass('sidebar-collapsed')) {
+                        localStorage.setItem('sidebarCollapsed', 'true');
+                    } else {
+                        localStorage.setItem('sidebarCollapsed', 'false');
+                    }
+                }
+            });
+            
+            // Close mobile menu when overlay is clicked
+            $('#mobileOverlay').click(function() {
+                $('#sidebar').removeClass('show');
+                $('#mobileOverlay').removeClass('show');
+                $('body').removeClass('sidebar-open');
+            });
+            
+            // Close mobile menu when clicking sidebar links
+            $('#sidebar .nav-link').click(function() {
+                if ($(window).width() <= 768) {
+                    $('#sidebar').removeClass('show');
+                    $('#mobileOverlay').removeClass('show');
+                    $('body').removeClass('sidebar-open');
+                }
+            });
+            
+            // Check for saved sidebar state (desktop only)
+            if ($(window).width() > 768 && localStorage.getItem('sidebarCollapsed') === 'true') {
+                $('#sidebar').addClass('sidebar-collapsed');
+                $('#main-content').addClass('main-content-expanded');
+            }
+            
+            // Handle window resize
+            $(window).resize(function() {
+                if ($(window).width() > 768) {
+                    $('#sidebar').removeClass('show');
+                    $('#mobileOverlay').removeClass('show');
+                    $('body').removeClass('sidebar-open');
+                    
+                    // Restore collapsed state if it was saved
+                    if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                        $('#sidebar').addClass('sidebar-collapsed');
+                        $('#main-content').addClass('main-content-expanded');
+                    }
+                } else {
+                    // On mobile, always remove collapsed state
+                    $('#sidebar').removeClass('sidebar-collapsed');
+                    $('#main-content').removeClass('main-content-expanded');
+                }
             });
             
             // Initialize Select2

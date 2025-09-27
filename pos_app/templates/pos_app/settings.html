@@ -23,68 +23,76 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h5>Business Information</h5>
-                <div class="mb-3">
-                    <label for="id_name" class="form-label">Business Name</label>
-                    {{ business_form.name|as_crispy_field }}
-                    {% if business_form.name.errors %}
-                        <div class="text-danger">{{ business_form.name.errors }}</div>
-                    {% endif %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ business_form.name|as_crispy_field }}
+                        {% if business_form.name.errors %}
+                            <div class="text-danger">{{ business_form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ business_form.business_type|as_crispy_field }}
+                        {% if business_form.business_type.errors %}
+                            <div class="text-danger">{{ business_form.business_type.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_logo" class="form-label">Business Logo</label>
-                    {{ business_form.logo|as_crispy_field }}
-                    {% if business_form.logo.errors %}
-                        <div class="text-danger">{{ business_form.logo.errors }}</div>
-                    {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ business_form.logo|as_crispy_field }}
+                        {% if business_form.logo.errors %}
+                            <div class="text-danger">{{ business_form.logo.errors }}</div>
+                        {% endif %}
+                        {% if business.logo %}
+                            <div class="mt-2">
+                                <img src="{{ business.logo.url }}" alt="Current Logo" class="img-thumbnail settings-current-logo">
+                                <p class="text-muted small mt-1">Current logo</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ business_form.address|as_crispy_field }}
+                        {% if business_form.address.errors %}
+                            <div class="text-danger">{{ business_form.address.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_address" class="form-label">Business Address</label>
-                    {{ business_form.address|as_crispy_field }}
-                    {% if business_form.address.errors %}
-                        <div class="text-danger">{{ business_form.address.errors }}</div>
-                    {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ business_form.phone|as_crispy_field }}
+                        {% if business_form.phone.errors %}
+                            <div class="text-danger">{{ business_form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ business_form.email|as_crispy_field }}
+                        {% if business_form.email.errors %}
+                            <div class="text-danger">{{ business_form.email.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_phone" class="form-label">Phone Number</label>
-                    {{ business_form.phone|as_crispy_field }}
-                    {% if business_form.phone.errors %}
-                        <div class="text-danger">{{ business_form.phone.errors }}</div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    <label for="id_email" class="form-label">Email Address</label>
-                    {{ business_form.email|as_crispy_field }}
-                    {% if business_form.email.errors %}
-                        <div class="text-danger">{{ business_form.email.errors }}</div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    <label for="id_website" class="form-label">Website URL</label>
-                    {{ business_form.website|as_crispy_field }}
-                    {% if business_form.website.errors %}
-                        <div class="text-danger">{{ business_form.website.errors }}</div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    <label for="id_business_type" class="form-label">Business Type</label>
-                    {{ business_form.business_type|as_crispy_field }}
-                    {% if business_form.business_type.errors %}
-                        <div class="text-danger">{{ business_form.business_type.errors }}</div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    <label for="id_tax_rate" class="form-label">Tax Rate (%)</label>
-                    {{ business_form.tax_rate|as_crispy_field }}
-                    {% if business_form.tax_rate.errors %}
-                        <div class="text-danger">{{ business_form.tax_rate.errors }}</div>
-                    {% endif %}
-                </div>
-                <div class="mb-3">
-                    <label for="id_currency_symbol" class="form-label">Currency Symbol</label>
-                    {{ business_form.currency_symbol|as_crispy_field }}
-                    {% if business_form.currency_symbol.errors %}
-                        <div class="text-danger">{{ business_form.currency_symbol.errors }}</div>
-                    {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ business_form.website|as_crispy_field }}
+                        {% if business_form.website.errors %}
+                            <div class="text-danger">{{ business_form.website.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ business_form.tax_rate|as_crispy_field }}
+                        {% if business_form.tax_rate.errors %}
+                            <div class="text-danger">{{ business_form.tax_rate.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ business_form.currency_symbol|as_crispy_field }}
+                        {% if business_form.currency_symbol.errors %}
+                            <div class="text-danger">{{ business_form.currency_symbol.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -92,37 +100,40 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h5>Business Settings</h5>
-                <div class="mb-3">
-                    <label for="id_theme_color" class="form-label">Theme Color</label>
-                    {{ settings_form.theme_color|as_crispy_field }}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ settings_form.theme_color|as_crispy_field }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ settings_form.enable_low_stock_alerts|as_crispy_field }}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_receipt_header" class="form-label">Receipt Header</label>
-                    {{ settings_form.receipt_header|as_crispy_field }}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ settings_form.receipt_header|as_crispy_field }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ settings_form.receipt_footer|as_crispy_field }}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_receipt_footer" class="form-label">Receipt Footer</label>
-                    {{ settings_form.receipt_footer|as_crispy_field }}
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.low_stock_threshold|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.enable_customer_loyalty|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.points_per_purchase|as_crispy_field }}
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_enable_low_stock_alerts" class="form-label">Enable Low Stock Alerts</label>
-                    {{ settings_form.enable_low_stock_alerts|as_crispy_field }}
-                </div>
-                <div class="mb-3">
-                    <label for="id_low_stock_threshold" class="form-label">Low Stock Threshold</label>
-                    {{ settings_form.low_stock_threshold|as_crispy_field }}
-                </div>
-                <div class="mb-3">
-                    <label for="id_enable_customer_loyalty" class="form-label">Enable Customer Loyalty</label>
-                    {{ settings_form.enable_customer_loyalty|as_crispy_field }}
-                </div>
-                <div class="mb-3">
-                    <label for="id_points_per_purchase" class="form-label">Points Per Purchase</label>
-                    {{ settings_form.points_per_purchase|as_crispy_field }}
-                </div>
-                <div class="mb-3">
-                    <label for="id_points_value" class="form-label">Points Value</label>
-                    {{ settings_form.points_value|as_crispy_field }}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ settings_form.points_value|as_crispy_field }}
+                    </div>
                 </div>
             </div>
         </div>

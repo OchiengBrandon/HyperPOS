@@ -65,7 +65,7 @@ def register_view(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('business_setup')
+            return redirect('pos:business_setup')
     else:
         form = UserRegistrationForm()
     return render(request, 'pos_app/register.html', {'form': form})
@@ -1909,11 +1909,21 @@ def reports(request):
         start_date = today.replace(day=1)
         end_date = today
     
-    # Sales summary
+    # Sales summary - convert dates to timezone-aware datetimes
+    from django.utils import timezone as django_timezone
+    # Convert start_date to start of day in local timezone
+    start_datetime = django_timezone.make_aware(
+        datetime.combine(start_date, datetime.min.time())
+    )
+    # Convert end_date to end of day in local timezone  
+    end_datetime = django_timezone.make_aware(
+        datetime.combine(end_date, datetime.max.time())
+    )
+    
     sales = Sale.objects.filter(
         business=business,
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date,
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime,
         status='completed'
     )
     
@@ -1931,19 +1941,32 @@ def reports(request):
         total=Sum('total_amount')
     ).order_by('-total')
     
-    # Sales by day
-    sales_by_day = sales.annotate(
-        day=TruncDay('created_at')
-    ).values('day').annotate(
-        count=Count('id'),
-        total=Sum('total_amount')
-    ).order_by('day')
+    # Sales by day - use a simpler approach without TruncDay to avoid MySQL timezone issues
+    sales_by_day = []
+    current_date = start_date
+    while current_date <= end_date:
+        day_start = django_timezone.make_aware(
+            datetime.combine(current_date, datetime.min.time())
+        )
+        day_end = django_timezone.make_aware(
+            datetime.combine(current_date, datetime.max.time())
+        )
+        day_sales = sales.filter(
+            created_at__gte=day_start,
+            created_at__lte=day_end
+        )
+        sales_by_day.append({
+            'day': current_date,
+            'count': day_sales.count(),
+            'total': day_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+        })
+        current_date = current_date + timedelta(days=1)
     
-    # Top selling products
+    # Top selling products  
     top_products = SaleItem.objects.filter(
         sale__business=business,
-        sale__created_at__date__gte=start_date,
-        sale__created_at__date__lte=end_date,
+        sale__created_at__gte=start_datetime,
+        sale__created_at__lte=end_datetime,
         sale__status='completed'
     ).values(
         'product__name'
@@ -1955,8 +1978,8 @@ def reports(request):
     # Top customers
     top_customers = Sale.objects.filter(
         business=business,
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date,
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime,
         status='completed',
         customer__isnull=False
     ).values(
@@ -1967,7 +1990,7 @@ def reports(request):
         total=Sum('total_amount')
     ).order_by('-total')[:10]
     
-    # Expenses summary
+    # Expenses summary - use date filtering for expenses as they use date field, not datetime
     expenses = Expense.objects.filter(
         business=business,
         date__gte=start_date,
@@ -2014,7 +2037,7 @@ def reports(request):
         'end_date': end_date,
         'sales_summary': sales_summary,
         'sales_by_payment': sales_by_payment,
-        'sales_by_day': list(sales_by_day),
+        'sales_by_day': sales_by_day,
         'top_products': top_products,
         'top_customers': top_customers,
         'expenses_summary': expenses_summary,
@@ -2043,9 +2066,16 @@ def export_sales_report(request):
     end_date = request.GET.get('end_date')
     
     try:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-    except ValueError:
+        if start_date and end_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            # Default to current month if no dates provided
+            today = timezone.now().date()
+            start_date = today.replace(day=1)
+            end_date = today
+    except (ValueError, TypeError):
+        # Fallback to current month if invalid dates
         today = timezone.now().date()
         start_date = today.replace(day=1)
         end_date = today

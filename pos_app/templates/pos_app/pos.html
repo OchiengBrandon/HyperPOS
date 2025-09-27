@@ -30,6 +30,223 @@
         }
     }
     
+    /* Tablet styles */
+    @media (max-width: 768px) {
+        body {
+            overflow: visible;
+        }
+        
+        .main-content {
+            height: auto;
+            overflow: visible;
+        }
+        
+        .pos-container {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto;
+            height: auto;
+            gap: 0;
+        }
+        
+        .products-section {
+            height: auto;
+            overflow: visible;
+            min-height: 50vh;
+        }
+        
+        .cart-section {
+            min-height: 50vh;
+            position: sticky;
+            top: 60px;
+        }
+        
+        .products-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        
+        .product-card {
+            padding: 10px;
+        }
+        
+        .product-card img {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .product-card .product-name {
+            font-size: 0.8rem;
+            height: 30px;
+        }
+        
+        .product-card .product-price {
+            font-size: 0.9rem;
+        }
+        
+        .products-grid-container {
+            padding: 10px;
+        }
+        
+        .categories-scrollable {
+            padding: 8px 10px;
+            gap: 8px;
+        }
+        
+        .category-pill {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+        }
+        
+        .payment-methods {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .payment-method-btn {
+            padding: 10px 8px;
+            font-size: 0.85rem;
+        }
+        
+        .payment-method-btn i {
+            font-size: 20px;
+        }
+    }
+    
+    /* Mobile styles */
+    @media (max-width: 576px) {
+        .products-header {
+            padding: 10px;
+        }
+        
+        .products-header .row {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .products-grid {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+        }
+        
+        .product-card {
+            padding: 8px;
+        }
+        
+        .product-card img {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .product-card .product-name {
+            font-size: 0.75rem;
+            height: 25px;
+        }
+        
+        .product-card .product-price {
+            font-size: 0.8rem;
+        }
+        
+        .categories-scrollable {
+            padding: 5px;
+            gap: 5px;
+        }
+        
+        .category-pill {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+        
+        .cart-section {
+            position: relative;
+            top: 0;
+        }
+        
+        .cart-header {
+            padding: 10px;
+        }
+        
+        .cart-items {
+            max-height: 200px;
+        }
+        
+        .cart-item {
+            padding: 8px;
+        }
+        
+        .cart-item-name {
+            font-size: 0.85rem;
+        }
+        
+        .cart-total {
+            padding: 10px;
+        }
+        
+        .payment-methods {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .payment-method-btn {
+            padding: 8px 6px;
+            font-size: 0.8rem;
+        }
+        
+        .payment-method-btn i {
+            font-size: 18px;
+        }
+        
+        .btn-group {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .btn-group .btn {
+            margin-bottom: 5px;
+            border-radius: 5px;
+        }
+    }
+    
+    /* Small mobile styles */
+    @media (max-width: 480px) {
+        .products-grid {
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 6px;
+        }
+        
+        .products-grid-container {
+            padding: 8px;
+        }
+        
+        .product-card {
+            padding: 6px;
+        }
+        
+        .product-card img {
+            width: 45px;
+            height: 45px;
+        }
+        
+        .product-card .product-name {
+            font-size: 0.7rem;
+            height: 20px;
+        }
+        
+        .payment-methods {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .cart-items {
+            max-height: 150px;
+        }
+        
+        .modal-dialog {
+            margin: 10px;
+            max-width: calc(100% - 20px);
+        }
+    }
+    
     .products-section {
         display: flex;
         flex-direction: column;
@@ -918,7 +1135,7 @@
                     
                     // Set receipt details
                     invoiceNumber.textContent = data.invoice_number;
-                    viewReceiptBtn.href = `/pos/receipt/${data.sale_id}/`;
+                    viewReceiptBtn.href = `/pos/pos/receipt/${data.sale_id}/`;
                     
                     // Show receipt modal
                     receiptModal.show();

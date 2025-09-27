@@ -22,7 +22,7 @@
                 <ul>
                     <li><a href="#features">Features</a></li>
                     <li><a href="#how-it-works">How It Works</a></li>
-                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="{% url 'core:demo' %}">Demo</a></li>
                     <li><a href="#testimonials">Testimonials</a></li>
                     <li><a href="#contact">Contact</a></li>
                 </ul>
@@ -44,7 +44,7 @@
             <ul>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
-                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="{% url 'core:demo' %}">Demo</a></li>
                 <li><a href="#testimonials">Testimonials</a></li>
                 <li><a href="#contact">Contact</a></li>
                 <li><a href="{% url 'pos:login' %}">Login</a></li>
@@ -67,8 +67,8 @@
                     <p>The ultimate point-of-sale solution tailored for small to medium businesses. Streamline your operations, boost sales, and delight customers with our powerful yet easy-to-use POS system.</p>
                     
                     <div class="hero-buttons">
-                        <a href="{% url 'pos:login' %}" class="btn btn-primary">
-                            <i class="fas fa-desktop"></i> Try HyperPOS
+                        <a href="{% url 'core:demo' %}" class="btn btn-primary">
+                            <i class="fas fa-desktop"></i> Try Demo
                         </a>
                         <a href="#features" class="btn btn-secondary">
                             <i class="fas fa-info-circle"></i> Learn More
@@ -185,59 +185,6 @@
         </div>
     </section>
 
-    <section class="section pricing" id="pricing">
-        <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Simple, Transparent Pricing</h2>
-                <p class="section-subtitle">Choose the plan that works best for your business needs with no hidden fees.</p>
-            </div>
-            
-            <div class="pricing-cards">
-                <div class="pricing-card">
-                    <h3 class="pricing-title">Starter</h3>
-                    <div class="pricing-price">1299</div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> Single register</li>
-                        <li><i class="fas fa-check"></i> Up to 500 products</li>
-                        <li><i class="fas fa-check"></i> Basic reporting</li>
-                        <li><i class="fas fa-check"></i> Email support</li>
-                        <li><i class="fas fa-check"></i> Cloud backup</li>
-                    </ul>
-                    <a href="/signup" class="btn btn-secondary">Get Started</a>
-                </div>
-                
-                <div class="pricing-card popular">
-                    <h3 class="pricing-title">Professional</h3>
-                    <div class="pricing-price">3999</div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> Up to 3 registers</li>
-                        <li><i class="fas fa-check"></i> Unlimited products</li>
-                        <li><i class="fas fa-check"></i> Advanced reporting</li>
-                        <li><i class="fas fa-check"></i> Priority support</li>
-                        <li><i class="fas fa-check"></i> Customer loyalty program</li>
-                        <li><i class="fas fa-check"></i> Employee management</li>
-                    </ul>
-                    <a href="/signup" class="btn btn-primary">Get Started</a>
-                </div>
-                
-                <div class="pricing-card">
-                    <h3 class="pricing-title">Enterprise</h3>
-                    <div class="pricing-price">6999</div>
-                    <ul class="pricing-features">
-                        <li><i class="fas fa-check"></i> Unlimited registers</li>
-                        <li><i class="fas fa-check"></i> Unlimited products</li>
-                        <li><i class="fas fa-check"></i> Custom reporting</li>
-                        <li><i class="fas fa-check"></i> 24/7 dedicated support</li>
-                        <li><i class="fas fa-check"></i> Advanced inventory management</li>
-                        <li><i class="fas fa-check"></i> Multi-location support</li>
-                        <li><i class="fas fa-check"></i> API access</li>
-                    </ul>
-                    <a href="/signup" class="btn btn-secondary">Get Started</a>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <section class="section testimonials" id="testimonials">
         <div class="container">
             <div class="section-header">
@@ -318,8 +265,8 @@
                     <a href="{% url 'pos:register' %}" class="btn btn-secondary">
                         <i class="fas fa-user-plus"></i> Sign Up Now
                     </a>
-                    <a href="{% url 'pos:login' %}" class="btn btn-primary">
-                        <i class="fas fa-desktop"></i> Try HyperPOS
+                    <a href="{% url 'core:demo' %}" class="btn btn-primary">
+                        <i class="fas fa-desktop"></i> Try Demo
                     </a>
                 </div>
             </div>
@@ -389,7 +336,7 @@
             </div>
             
             <div class="footer-bottom">
-                <p>&copy; 2025 HyperPOS. All rights reserved. Powered by <a href="#">brandondeveloper</a></p>
+                <p>&copy; 2025 HyperPOS. All rights reserved. Powered by <a href="#">Sysnav Technologies</a></p>
             </div>
         </div>
     </footer>

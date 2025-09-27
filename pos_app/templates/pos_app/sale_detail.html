@@ -10,9 +10,9 @@
         <div class="card-body">
             <h5>Invoice Number: {{ sale.invoice_number }}</h5>
             <p><strong>Customer:</strong> {{ sale.customer.full_name }}</p>
-            <p><strong>Total Amount:</strong> ${{ sale.total_amount|floatformat:2 }}</p>
-            <p><strong>Tax Amount:</strong> ${{ sale.tax_amount|floatformat:2 }}</p>
-            <p><strong>Discount Amount:</strong> ${{ sale.discount_amount|floatformat:2 }}</p>
+            <p><strong>Total Amount:</strong> {{ business.currency_symbol }}{{ sale.total_amount|floatformat:2 }}</p>
+            <p><strong>Tax Amount:</strong> {{ business.currency_symbol }}{{ sale.tax_amount|floatformat:2 }}</p>
+            <p><strong>Discount Amount:</strong> {{ business.currency_symbol }}{{ sale.discount_amount|floatformat:2 }}</p>
             <p><strong>Status:</strong> {{ sale.status }}</p>
             <p><strong>Date:</strong> {{ sale.created_at|date:"Y-m-d H:i" }}</p>
             <p><strong>Served By:</strong> {{ sale.employee }}</p>
@@ -32,8 +32,8 @@
                         <tr>
                             <td>{{ item.product.name }}</td>
                             <td>{{ item.quantity }}</td>
-                            <td>${{ item.unit_price|floatformat:2 }}</td>
-                            <td>${{ item.subtotal|floatformat:2 }}</td>
+                            <td>{{ business.currency_symbol }}{{ item.unit_price|floatformat:2 }}</td>
+                            <td>{{ business.currency_symbol }}{{ item.subtotal|floatformat:2 }}</td>
                         </tr>
                     {% empty %}
                         <tr>

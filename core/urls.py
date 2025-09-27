@@ -22,6 +22,9 @@ urlpatterns = [
     path('updates/', views.updates_view, name='updates'),
     path('roadmap/', views.roadmap_view, name='roadmap'),
     
+    # Demo page - redirects to POS login
+    path('demo/', views.demo_view, name='demo'),
+    
     # You might add additional pages like:
     # path('about/', views.about_view, name='about'),
     # path('privacy-policy/', views.privacy_policy_view, name='privacy_policy'),

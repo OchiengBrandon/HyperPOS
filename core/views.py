@@ -49,49 +49,6 @@ class IndexView(TemplateView):
             }
         ]
         
-        # Add pricing plans data
-        context['pricing_plans'] = [
-            {
-                'name': 'Starter',
-                'price': 1200,
-                'popular': False,
-                'features': [
-                    'Single register',
-                    'Up to 500 products',
-                    'Basic reporting',
-                    'Email support',
-                    'Cloud backup'
-                ]
-            },
-            {
-                'name': 'Professional',
-                'price': 4000,
-                'popular': True,
-                'features': [
-                    'Up to 3 registers',
-                    'Unlimited products',
-                    'Advanced reporting',
-                    'Priority support',
-                    'Customer loyalty program',
-                    'Employee management'
-                ]
-            },
-            {
-                'name': 'Enterprise',
-                'price': 7500,
-                'popular': False,
-                'features': [
-                    'Unlimited registers',
-                    'Unlimited products',
-                    'Custom reporting',
-                    '24/7 dedicated support',
-                    'Advanced inventory management',
-                    'Multi-location support',
-                    'API access'
-                ]
-            }
-        ]
-        
         # Add testimonials data
         context['testimonials'] = [
             {
@@ -138,10 +95,11 @@ class IndexView(TemplateView):
             }
         ]
         
-        # Footer quick links
+        # Footer quick links - updated to point pricing to demo
         context['quick_links'] = [
             {'name': 'Features', 'url': '#features'},
-            {'name': 'Pricing', 'url': '#pricing'},
+            {'name': 'Pricing', 'url': '/demo'},
+            {'name': 'Demo', 'url': '/demo'},
             {'name': 'Testimonials', 'url': '#testimonials'},
             {'name': 'Blog', 'url': '/blog'},
             {'name': 'POS System', 'url': '/pos'}
@@ -266,3 +224,11 @@ def roadmap_view(request):
     View for the product roadmap page.
     """
     return render(request, 'core/roadmap.html')
+
+
+def demo_view(request):
+    """
+    View for the demo page - redirects to the POS system.
+    """
+    messages.info(request, 'Welcome to the HyperPOS Demo! Please log in to explore the system.')
+    return redirect('pos:login')

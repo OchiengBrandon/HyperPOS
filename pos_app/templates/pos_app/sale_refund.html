@@ -10,7 +10,7 @@
         <div class="card-body">
             <h5>Sale Details</h5>
             <p><strong>Customer:</strong> {{ sale.customer.full_name }}</p>
-            <p><strong>Total Amount:</strong> ${{ sale.total_amount|floatformat:2 }}</p>
+            <p><strong>Total Amount:</strong> {{ business.currency_symbol }}{{ sale.total_amount|floatformat:2 }}</p>
             <p><strong>Status:</strong> {{ sale.status }}</p>
             <p><strong>Date:</strong> {{ sale.created_at|date:"Y-m-d H:i" }}</p>
 
