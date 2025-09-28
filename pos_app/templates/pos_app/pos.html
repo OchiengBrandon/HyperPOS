@@ -61,7 +61,7 @@
         min-height: 0; /* Important for flex child scrolling */
     }
     
-    /* === CART SECTION - SIMPLE WORKING LAYOUT === */
+    /* === CART SECTION - COMPACT LAYOUT === */
     .cart-section {
         width: 350px;
         height: 100vh;
@@ -73,15 +73,15 @@
     }
     
     .cart-header {
-        padding: 20px;
+        padding: 10px; /* Reduced from 20px */
         border-bottom: 1px solid #e9ecef;
         background-color: #f8f9fa;
         flex-shrink: 0;
     }
     
     .cart-items {
-        height: calc(100vh - 600px); /* Much smaller height to guarantee checkout button visibility */
-        min-height: 200px; /* Minimum height so it's still usable */
+        height: calc(100vh - 700px); /* Much smaller height */
+        min-height: 100px; /* Reduced minimum height */
         overflow-y: auto;
         overflow-x: hidden;
         background-color: white;
@@ -89,14 +89,14 @@
     }
     
     .cart-totals {
-        padding: 20px;
+        padding: 10px; /* Reduced from 20px */
         border-top: 1px solid #e9ecef;
         background-color: #f8f9fa;
         flex-shrink: 0;
     }
     
     .payment-actions {
-        padding: 20px;
+        padding: 10px; /* Reduced from 20px */
         border-top: 1px solid #e9ecef;
         background-color: white;
         position: relative;
@@ -104,7 +104,7 @@
         display: block;
         visibility: visible;
         flex-shrink: 0;
-        min-height: 80px; /* Ensure minimum space for the button */
+        min-height: 60px; /* Reduced from 80px */
     }
     
     @media (max-width: 1200px) {
@@ -168,20 +168,20 @@
         }
         
         .cart-header {
-            padding: 15px;
+            padding: 8px; /* Reduced */
         }
         
         .cart-items {
-            height: calc(50vh - 250px); /* Much smaller height for mobile to show checkout button */
-            min-height: 150px; /* Minimum height for mobile */
+            height: calc(50vh - 300px); /* Much smaller height for mobile */
+            min-height: 80px; /* Very small minimum for mobile */
         }
         
         .cart-totals {
-            padding: 15px;
+            padding: 8px; /* Reduced */
         }
         
         .payment-actions {
-            padding: 15px;
+            padding: 8px; /* Reduced */
         }
         
         .products-grid {
@@ -497,7 +497,7 @@
     }
     
     .cart-item {
-        padding: 12px 15px;
+        padding: 8px 10px; /* Reduced from 12px 15px */
         border-bottom: 1px solid #f1f1f1;
         background-color: white;
         transition: background-color 0.2s;
