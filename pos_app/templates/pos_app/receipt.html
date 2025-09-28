@@ -12,111 +12,174 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
+        /* === THERMAL RECEIPT STYLING === */
         body {
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Courier New', 'Liberation Mono', 'DejaVu Sans Mono', Monaco, monospace;
             background-color: #f5f7fa;
             padding: 20px;
+            line-height: 1.2;
+            color: #000000; /* Pure black for maximum contrast */
+            font-weight: bold; /* Make all text bold by default */
         }
         
         .receipt-container {
-            max-width: 400px;
+            max-width: 320px; /* Standard thermal paper width (80mm ≈ 320px at 96 DPI) */
+            width: 100%;
             margin: 0 auto;
             background-color: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            color: #000000; /* Ensure black text throughout */
         }
         
+        /* Font A - Large/Bold for headers and totals */
         .receipt-header {
             text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px dashed #ddd;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000000; /* Thicker black border */
         }
         
         .receipt-header img {
-            max-width: 80px;
-            margin-bottom: 10px;
+            max-width: 60px;
+            margin-bottom: 8px;
         }
         
         .receipt-header h2 {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 16px; /* Larger font for better visibility */
+            font-weight: 900; /* Extra bold */
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #000000;
         }
         
         .receipt-header p {
-            margin-bottom: 3px;
-            font-size: 12px;
+            margin-bottom: 2px;
+            font-size: 11px; /* Slightly larger */
+            font-weight: bold; /* Make header info bold */
+            color: #000000;
         }
         
+        /* Font B - Small/Compact but bold for details */
         .receipt-info {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000000; /* Thicker border */
+            padding-bottom: 8px;
         }
         
         .receipt-info p {
-            margin-bottom: 5px;
-            font-size: 12px;
+            margin-bottom: 3px;
+            font-size: 11px; /* Slightly larger for visibility */
+            font-weight: bold; /* Bold for receipt info */
+            color: #000000;
         }
         
+        .receipt-info strong {
+            font-weight: 900; /* Extra bold for labels */
+        }
+        
+        /* Thermal receipt table with bold text */
         .receipt-table {
             width: 100%;
-            margin-bottom: 20px;
-            font-size: 12px;
+            margin-bottom: 15px;
+            font-size: 11px; /* Slightly larger */
+            border-collapse: collapse;
+            font-weight: bold; /* Bold table text */
+            color: #000000;
         }
         
         .receipt-table th, .receipt-table td {
-            padding: 5px 0;
+            padding: 3px 0; /* Slightly more padding */
+            vertical-align: top;
+            color: #000000;
         }
         
         .receipt-table th {
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 2px solid #000000; /* Thicker border */
+            font-weight: 900; /* Extra bold headers */
+            font-size: 11px;
+        }
+        
+        .receipt-table td {
+            font-weight: bold; /* Bold table data */
         }
         
         .receipt-table td.quantity {
             text-align: center;
+            width: 15%;
+            font-weight: bold;
         }
         
         .receipt-table td.amount {
             text-align: right;
+            width: 25%;
+            font-weight: bold;
         }
         
+        .receipt-table td:first-child {
+            width: 35%;
+            word-wrap: break-word;
+            font-weight: bold;
+        }
+        
+        /* Font A for totals - Extra Bold and larger */
         .receipt-totals {
             margin-top: 10px;
-            border-top: 1px dashed #ddd;
-            padding-top: 10px;
+            border-top: 2px solid #000000; /* Thicker border */
+            padding-top: 8px;
         }
         
         .receipt-total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 12px;
+            margin-bottom: 4px; /* Slightly more space */
+            font-size: 11px; /* Larger font */
+            font-weight: bold; /* Bold totals */
+            color: #000000;
         }
         
         .receipt-total-row.final {
-            font-weight: bold;
-            font-size: 14px;
-            margin-top: 5px;
-            padding-top: 5px;
-            border-top: 1px solid #ddd;
+            font-weight: 900; /* Extra bold final total */
+            font-size: 14px; /* Larger final total */
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 3px double #000000; /* Double border for emphasis */
+            text-transform: uppercase;
+            color: #000000;
         }
         
-        .receipt-footer {
-            text-align: center;
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 1px dashed #ddd;
-            font-size: 11px;
-        }
-        
+        /* OCR-B style barcode section - Bold */
         .receipt-barcode {
             text-align: center;
-            margin: 20px 0;
+            margin: 15px 0;
             font-size: 14px;
-            letter-spacing: 5px;
+            font-family: 'OCR-B', 'Courier New', monospace;
+            letter-spacing: 3px;
+            font-weight: 900; /* Extra bold barcode */
+            color: #000000;
         }
         
+        /* Font B for footer - Bold */
+        .receipt-footer {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 8px;
+            border-top: 2px solid #000000; /* Thicker border */
+            font-size: 10px; /* Slightly larger footer */
+            font-weight: bold; /* Bold footer */
+            color: #000000;
+        }
+        
+        .receipt-footer p {
+            margin-bottom: 3px;
+            line-height: 1.1;
+            color: #000000;
+        }
+        
+        /* Action buttons - not for thermal printing */
         .receipt-actions {
             display: flex;
             justify-content: center;
@@ -124,19 +187,107 @@
             margin-top: 20px;
         }
         
+        /* Thermal Receipt Font Classes - Enhanced for visibility */
+        .font-a {
+            font-size: 14px;
+            font-weight: 900; /* Extra bold */
+            color: #000000;
+        }
+        
+        .font-b {
+            font-size: 11px;
+            font-weight: bold; /* Bold instead of normal */
+            color: #000000;
+        }
+        
+        .font-small {
+            font-size: 10px;
+            font-weight: bold; /* Bold for visibility */
+            color: #000000;
+        }
+        
+        /* Double width/height effects for thermal printers */
+        .double-width {
+            transform: scaleX(2);
+            transform-origin: left;
+            font-weight: 900; /* Extra bold for scaled text */
+        }
+        
+        .double-height {
+            transform: scaleY(2);
+            transform-origin: top;
+            font-weight: 900; /* Extra bold for scaled text */
+        }
+        
+        .double-size {
+            transform: scale(2);
+            transform-origin: top left;
+            font-weight: 900; /* Extra bold for scaled text */
+        }
+        
+        /* Print styles for actual thermal printing - Maximum contrast */
         @media print {
             body {
                 background-color: white;
                 padding: 0;
+                margin: 0;
+                color: #000000 !important;
+                font-weight: bold !important;
             }
             
             .receipt-container {
                 box-shadow: none;
-                padding: 0;
+                padding: 5px;
+                margin: 0;
+                border: none;
+                max-width: 100%;
+                width: 80mm; /* Actual thermal paper width */
             }
             
             .receipt-actions {
-                display: none;
+                display: none !important;
+            }
+            
+            /* Ensure maximum contrast for thermal printing */
+            *, *:before, *:after {
+                color: #000000 !important;
+                background-color: white !important;
+                font-weight: bold !important;
+                text-shadow: none !important;
+                box-shadow: none !important;
+            }
+            
+            /* Extra bold for important elements */
+            .receipt-header h2,
+            .receipt-total-row.final,
+            .receipt-barcode {
+                font-weight: 900 !important;
+            }
+            
+            /* Thicker borders for print */
+            .receipt-header,
+            .receipt-info,
+            .receipt-totals,
+            .receipt-footer {
+                border-color: #000000 !important;
+                border-width: 2px !important;
+            }
+            
+            .receipt-table th {
+                border-bottom: 2px solid #000000 !important;
+            }
+            
+            .receipt-total-row.final {
+                border-top: 3px double #000000 !important;
+            }
+            
+            /* Optimize spacing for thermal printing */
+            .receipt-header,
+            .receipt-info,
+            .receipt-totals,
+            .receipt-footer {
+                margin-bottom: 8px;
+                padding-bottom: 4px;
             }
         }
     </style>
@@ -147,33 +298,33 @@
             {% if business.logo %}
                 <img src="{{ business.logo.url }}" alt="{{ business.name }}">
             {% endif %}
-            <h2>{{ business.name }}</h2>
-            <p>{{ business.address }}</p>
-            <p>Tel: {{ business.phone }}</p>
-            <p>Email: {{ business.email }}</p>
+            <h2 class="font-a">{{ business.name }}</h2>
+            <p class="font-b">{{ business.address }}</p>
+            <p class="font-b">Tel: {{ business.phone }}</p>
+            <p class="font-b">Email: {{ business.email }}</p>
         </div>
         
         <div class="receipt-info">
-            <p><strong>Receipt #:</strong> {{ sale.invoice_number }}</p>
-            <p><strong>Date:</strong> {{ sale.created_at|date:"M d, Y H:i" }}</p>
-            <p><strong>Customer:</strong> {{ sale.customer.full_name|default:"Walk-in Customer" }}</p>
+            <p class="font-b"><strong>Receipt #:</strong> {{ sale.invoice_number }}</p>
+            <p class="font-b"><strong>Date:</strong> {{ sale.created_at|date:"M d, Y H:i" }}</p>
+            <p class="font-b"><strong>Customer:</strong> {{ sale.customer.full_name|default:"Walk-in Customer" }}</p>
             {% if sale.employee %}
-                <p><strong>Served by:</strong> {{ sale.employee.user.get_full_name }}</p>
+                <p class="font-b"><strong>Served by:</strong> {{ sale.employee.user.get_full_name }}</p>
             {% endif %}
         </div>
         
         <table class="receipt-table">
             <thead>
                 <tr>
-                    <th>Item</th>
-                    <th class="quantity">Qty</th>
-                    <th class="amount">Price</th>
-                    <th class="amount">Total</th>
+                    <th class="font-b">Item</th>
+                    <th class="font-b quantity">Qty</th>
+                    <th class="font-b amount">Price</th>
+                    <th class="font-b amount">Total</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in items %}
-                    <tr>
+                    <tr class="font-b">
                         <td>{{ item.product.name }}</td>
                         <td class="quantity">{{ item.quantity }}</td>
                         <td class="amount">{{ business.currency_symbol }} {{ item.unit_price|floatformat:2 }}</td>
