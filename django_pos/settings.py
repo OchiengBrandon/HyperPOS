@@ -200,6 +200,6 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 # Login URLs
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGIN_URL = '/pos/login/'
+LOGIN_REDIRECT_URL = '/pos/dashboard/'
+LOGOUT_REDIRECT_URL = '/pos/login/'
