@@ -37,6 +37,26 @@ body.sidebar-open {
     }
 }
 
+/* Dropdown fixes */
+.dropdown-menu {
+    z-index: 1050 !important;
+    border: 1px solid rgba(0,0,0,.15);
+    box-shadow: 0 6px 12px rgba(0,0,0,.175);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.dropdown-toggle::after {
+    margin-left: 0.5em;
+}
+
+/* Table dropdowns */
+.table .dropdown-menu {
+    position: absolute;
+    z-index: 1055;
+    min-width: 160px;
+}
+
 /* Sidebar */
 .sidebar {
     position: fixed;

@@ -51,6 +51,23 @@
                     {% endif %}
                 </div>
 
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
+                        {{ form.phone|add_class:"form-control" }}
+                        {% if form.phone.errors %}
+                            <div class="text-danger mt-1">{{ form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                        {{ form.email|add_class:"form-control" }}
+                        {% if form.email.errors %}
+                            <div class="text-danger mt-1">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
                     {{ form.address|add_class:"form-control" }}
@@ -59,13 +76,79 @@
                     {% endif %}
                 </div>
 
-                <div class="mb-3">
-                    <label for="{{ form.loyalty_points.id_for_label }}" class="form-label">Loyalty Points</label>
-                    {{ form.loyalty_points|add_class:"form-control" }}
-                    {% if form.loyalty_points.errors %}
-                        <div class="text-danger mt-1">{{ form.loyalty_points.errors }}</div>
-                    {% endif %}
+                <!-- Credit Management Section -->
+                {% if role == 'owner' or role == 'admin' or role == 'manager' %}
+                <div class="card mb-3" style="background-color: #f8f9fa;">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-credit-card me-2"></i>Credit Management
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="{{ form.credit_limit.id_for_label }}" class="form-label">
+                                    <i class="fas fa-coins me-1"></i>{{ form.credit_limit.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">{{ business.currency_symbol }}</span>
+                                    {{ form.credit_limit|add_class:"form-control" }}
+                                </div>
+                                {% if form.credit_limit.help_text %}
+                                    <div class="form-text">{{ form.credit_limit.help_text }}</div>
+                                {% endif %}
+                                {% if form.credit_limit.errors %}
+                                    <div class="text-danger mt-1">{{ form.credit_limit.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.current_debt.id_for_label }}" class="form-label">
+                                    <i class="fas fa-exclamation-triangle me-1 text-warning"></i>{{ form.current_debt.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">{{ business.currency_symbol }}</span>
+                                    {{ form.current_debt|add_class:"form-control" }}
+                                </div>
+                                {% if form.current_debt.help_text %}
+                                    <div class="form-text">{{ form.current_debt.help_text }}</div>
+                                {% endif %}
+                                {% if form.current_debt.errors %}
+                                    <div class="text-danger mt-1">{{ form.current_debt.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if customer.current_debt and customer.current_debt > 0 %}
+                        <div class="alert alert-warning mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Outstanding Debt:</strong> {{ business.currency_symbol }}{{ customer.current_debt }}
+                            <br>
+                            <strong>Available Credit:</strong> {{ business.currency_symbol }}{{ customer.available_credit }}
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
+                {% endif %}
+
+                <!-- Loyalty Section -->
+                {% if business.settings.enable_customer_loyalty %}
+                <div class="card mb-3" style="background-color: #e8f5e8;">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-star me-2"></i>Loyalty Program
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <label for="{{ form.loyalty_points.id_for_label }}" class="form-label">
+                            <i class="fas fa-gift me-1"></i>Loyalty Points
+                        </label>
+                        {{ form.loyalty_points|add_class:"form-control" }}
+                        {% if form.loyalty_points.errors %}
+                            <div class="text-danger mt-1">{{ form.loyalty_points.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                     <a href="{% url 'pos:customer_list' %}" class="btn btn-outline-secondary">Cancel</a>

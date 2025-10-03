@@ -80,12 +80,33 @@ class BusinessSettingsForm(forms.ModelForm):
         model = BusinessSettings
         fields = ('theme_color', 'receipt_header', 'receipt_footer', 
                  'enable_low_stock_alerts', 'low_stock_threshold',
-                 'enable_customer_loyalty', 'points_per_purchase', 'points_value')
+                 'enable_customer_loyalty', 'points_per_purchase', 'points_value',
+                 'enable_vat', 'vat_inclusive_pricing', 'default_vat_category', 
+                 'kra_pin', 'vat_number', 'show_vat_on_receipt', 'vat_rounding')
         widgets = {
             'receipt_header': forms.Textarea(attrs={'rows': 3}),
             'receipt_footer': forms.Textarea(attrs={'rows': 3}),
             'theme_color': forms.TextInput(attrs={'type': 'color'}),
+            'kra_pin': forms.TextInput(attrs={'placeholder': 'P051234567X'}),
+            'vat_number': forms.TextInput(attrs={'placeholder': 'VAT-123456789'}),
         }
+        
+        labels = {
+            'enable_vat': 'Enable VAT System',
+            'vat_inclusive_pricing': 'Prices Include VAT',
+            'default_vat_category': 'Default VAT Category',
+            'kra_pin': 'KRA PIN',
+            'vat_number': 'VAT Registration Number',
+            'show_vat_on_receipt': 'Show VAT on Receipts',
+            'vat_rounding': 'VAT Rounding Method',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        business = kwargs.pop('business', None)
+        super().__init__(*args, **kwargs)
+        if business:
+            from .models import VATCategory
+            self.fields['default_vat_category'].queryset = VATCategory.objects.filter(business=business)
 
 class CategoryForm(forms.ModelForm):
     class Meta:
@@ -104,7 +125,8 @@ class ProductForm(forms.ModelForm):
             'description', 
             'sku', 
             'barcode', 
-            'category', 
+            'category',
+            'vat_category', 
             'purchase_price', 
             'selling_price', 
             'stock_quantity', 
@@ -117,6 +139,11 @@ class ProductForm(forms.ModelForm):
             'purchase_price': forms.NumberInput(attrs={'step': '0.01'}),
             'selling_price': forms.NumberInput(attrs={'step': '0.01'}),
             'stock_quantity': forms.NumberInput(attrs={'min': '0'}),
+            'vat_category': forms.Select(attrs={'class': 'form-select'}),
+        }
+        
+        labels = {
+            'vat_category': 'VAT Category',
         }
     
     def __init__(self, *args, **kwargs):
@@ -124,14 +151,39 @@ class ProductForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if business:
             self.fields['category'].queryset = Category.objects.filter(business=business)
+            # Filter VAT categories by business
+            from .models import VATCategory
+            self.fields['vat_category'].queryset = VATCategory.objects.filter(business=business)
 
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ('first_name', 'last_name', 'email', 'phone', 'address', 'loyalty_points')
+        fields = (
+            'first_name', 'last_name', 'email', 'phone', 'address', 
+            'credit_limit', 'current_debt'
+        )
         widgets = {
             'address': forms.Textarea(attrs={'rows': 3}),
+            'credit_limit': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'current_debt': forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'readonly': True}),
         }
+        
+        labels = {
+            'credit_limit': 'Credit Limit',
+            'current_debt': 'Current Debt (Read Only)',
+        }
+        
+        help_texts = {
+            'credit_limit': 'Maximum amount this customer can owe',
+            'current_debt': 'Current outstanding debt (automatically calculated)',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make current_debt field readonly and not required for new customers
+        self.fields['current_debt'].required = False
+        if not self.instance.pk:  # New customer
+            self.fields['current_debt'].initial = 0
 
 class EmployeeForm(forms.ModelForm):
     first_name = forms.CharField(max_length=30)

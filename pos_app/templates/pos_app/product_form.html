@@ -20,19 +20,31 @@
                 {% csrf_token %}
                 
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label for="{{ form.name.id_for_label }}" class="form-label">Product Name</label>
                         {{ form.name|add_class:"form-control" }}
                         {% if form.name.errors %}
                             <div class="text-danger mt-1">{{ form.name.errors }}</div>
                         {% endif %}
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label for="{{ form.category.id_for_label }}" class="form-label">Category</label>
                         {{ form.category|add_class:"form-select" }}
                         {% if form.category.errors %}
                             <div class="text-danger mt-1">{{ form.category.errors }}</div>
                         {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.vat_category.id_for_label }}" class="form-label">
+                            <i class="fas fa-percent me-1"></i>VAT Category
+                        </label>
+                        {{ form.vat_category|add_class:"form-select" }}
+                        {% if form.vat_category.errors %}
+                            <div class="text-danger mt-1">{{ form.vat_category.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">
+                            Select the appropriate VAT category for this product
+                        </div>
                     </div>
                 </div>
                 

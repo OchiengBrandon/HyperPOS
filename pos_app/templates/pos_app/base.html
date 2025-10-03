@@ -123,6 +123,22 @@
             </li>
             
             <li class="nav-item">
+                <a href="{% url 'pos:credit_management' %}" class="nav-link {% if 'credit' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-credit-card"></i>
+                    <span>Credit Management</span>
+                </a>
+            </li>
+            
+            {% if business.settings.enable_vat %}
+            <li class="nav-item">
+                <a href="{% url 'pos:vat_management' %}" class="nav-link {% if 'vat' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="bi bi-percent"></i>
+                    <span>VAT Management</span>
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="nav-item">
                 <a href="{% url 'pos:reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
                     <i class="bi bi-bar-chart"></i>
                     <span>Reports</span>

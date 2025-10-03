@@ -5,6 +5,7 @@ from django.contrib.auth import login, authenticate
 from django.contrib import messages
 from django.db import models
 from django.db.models import Sum, Count, F, ExpressionWrapper, DecimalField, Q, Avg
+from decimal import Decimal
 from django.db.models.functions import TruncDay, TruncMonth
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse
@@ -29,7 +30,7 @@ from .forms import (
 from .models import (
     Business, BusinessSettings, Category, Product, Customer,
     Employee, Sale, SaleItem, Inventory, Supplier, Purchase,
-    PurchaseItem, Expense
+    PurchaseItem, Expense, VATCategory, DebtPayment
 )
 
 # Helper functions
@@ -138,19 +139,72 @@ def dashboard(request):
         messages.error(request, 'You do not have access to this business')
         return redirect('pos:login')
     
-    # Get sales data for the last 30 days
+    # Date ranges for comprehensive metrics
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    sales = Sale.objects.filter(
+    current_month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Sales data for the last 30 days
+    sales_30_days = Sale.objects.filter(
         business=business,
         created_at__gte=thirty_days_ago,
         status='completed'
     )
     
-    # Daily sales data - use manual approach to avoid MySQL timezone issues
-    from django.utils import timezone as django_timezone
-    daily_sales = []
+    # Current month sales (completed only)
+    current_month_sales = Sale.objects.filter(
+        business=business,
+        created_at__gte=current_month_start,
+        status='completed'
+    )
     
-    # Get date range for the last 30 days
+    # All completed sales for business metrics
+    all_completed_sales = Sale.objects.filter(
+        business=business,
+        status='completed'
+    )
+    
+    # === COMPREHENSIVE REVENUE METRICS ===
+    total_revenue = current_month_sales.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_sales_count = current_month_sales.count()
+    
+    # Calculate expenses for profit calculation
+    current_month_expenses = Expense.objects.filter(
+        business=business,
+        created_at__gte=current_month_start
+    ).aggregate(Sum('amount'))['amount__sum'] or 0
+    
+    # Net profit calculation
+    net_profit = total_revenue - current_month_expenses
+    
+    # === CUSTOMER METRICS ===
+    total_customers = Customer.objects.filter(business=business).count()
+    customers_with_debt = Customer.objects.filter(
+        business=business, 
+        current_debt__gt=0
+    ).count()
+    total_debt = Customer.objects.filter(
+        business=business
+    ).aggregate(Sum('current_debt'))['current_debt__sum'] or 0
+    
+    # === PRODUCT/INVENTORY METRICS ===
+    total_products = Product.objects.filter(business=business, is_active=True).count()
+    
+    # Low stock calculation - safely get threshold
+    try:
+        low_stock_threshold = business.settings.low_stock_threshold
+    except (AttributeError, business.settings.model.DoesNotExist):
+        low_stock_threshold = 5  # Default threshold
+    
+    low_stock_products = Product.objects.filter(
+        business=business,
+        stock_quantity__lte=low_stock_threshold,
+        is_active=True
+    )
+    low_stock_count = low_stock_products.count()
+    
+    # === SALES TREND DATA FOR CHARTS ===
+    from django.utils import timezone as django_timezone
+    sales_trend_data = []
     today = timezone.now().date()
     start_date = today - timedelta(days=29)  # 30 days including today
     
@@ -162,38 +216,37 @@ def dashboard(request):
         day_end = django_timezone.make_aware(
             datetime.combine(current_date, datetime.max.time())
         )
-        day_sales = sales.filter(
+        day_sales = all_completed_sales.filter(
             created_at__gte=day_start,
             created_at__lte=day_end
         )
-        daily_sales.append({
-            'day': current_date,
-            'total': day_sales.aggregate(total=Sum('total_amount'))['total'] or 0,
+        
+        daily_revenue = day_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+        sales_trend_data.append({
+            'date': current_date.strftime('%m/%d'),
+            'revenue': float(daily_revenue),
             'count': day_sales.count()
         })
         current_date = current_date + timedelta(days=1)
     
-    # Calculate total sales, average sale value, and product count
-    total_sales = sales.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    avg_sale = total_sales / sales.count() if sales.count() > 0 else 0
-    product_count = Product.objects.filter(business=business).count()
+    # === PAYMENT METHOD BREAKDOWN ===
+    payment_method_data = []
+    payment_breakdown = current_month_sales.values('payment_method').annotate(
+        count=Count('id'),
+        total=Sum('total_amount')
+    ).order_by('-count')
     
-    # Low stock products - safely get threshold
-    try:
-        low_stock_threshold = business.settings.low_stock_threshold
-    except (AttributeError, business.settings.model.DoesNotExist):
-        low_stock_threshold = 5  # Default threshold
+    for payment in payment_breakdown:
+        payment_method_data.append({
+            'method': payment['payment_method'].replace('_', ' ').title(),
+            'count': payment['count'],
+            'total': float(payment['total'] or 0)
+        })
     
-    low_stock_products = Product.objects.filter(
-        business=business,
-        stock_quantity__lte=low_stock_threshold,
-        is_active=True
-    )[:5]
+    # === RECENT ACTIVITY ===
+    recent_sales = current_month_sales.order_by('-created_at')[:10]
     
-    # Recent sales
-    recent_sales = sales.order_by('-created_at')[:5]
-    
-    # Top selling products
+    # === TOP SELLING PRODUCTS ===
     top_products = SaleItem.objects.filter(
         sale__business=business,
         sale__created_at__gte=thirty_days_ago,
@@ -205,17 +258,28 @@ def dashboard(request):
         total_sales=Sum('subtotal')
     ).order_by('-total_quantity')[:5]
     
+    # Convert data to JSON for charts
+    import json
+    
     context = {
         'business': business,
         'role': role,
-        'total_sales': total_sales,
-        'avg_sale': avg_sale,
-        'product_count': product_count,
-        'sales_count': sales.count(),
-        'daily_sales': daily_sales,
-        'low_stock_products': low_stock_products,
+        # Core Metrics
+        'total_revenue': total_revenue,
+        'total_sales_count': total_sales_count,
+        'net_profit': net_profit,
+        'total_customers': total_customers,
+        'total_products': total_products,
+        'total_debt': total_debt,
+        'customers_with_debt': customers_with_debt,
+        'low_stock_count': low_stock_count,
+        # Data for tables
         'recent_sales': recent_sales,
+        'low_stock_products': low_stock_products[:5],  # Limit for display
         'top_products': top_products,
+        # Chart data - convert to JSON
+        'sales_trend_data': json.dumps(sales_trend_data),
+        'payment_method_data': json.dumps(payment_method_data),
     }
     
     return render(request, 'pos_app/dashboard.html', context)
@@ -248,18 +312,46 @@ def pos(request):
     
     return render(request, 'pos_app/pos.html', context)
 
-@login_required
 @csrf_exempt
 def process_sale(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method'}, status=400)
+    
+    # Check if user is authenticated
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
     
     business = get_business_for_user(request.user)
     if not business:
         return JsonResponse({'error': 'No business found'}, status=404)
     
     try:
+        print(f"DEBUG: Raw request body: {request.body}")
         data = json.loads(request.body)
+    except json.JSONDecodeError as e:
+        print(f"DEBUG: JSON decode error: {e}")
+        return JsonResponse({'error': f'Invalid JSON: {str(e)}'}, status=400)
+    except Exception as e:
+        print(f"DEBUG: General error parsing request: {e}")
+        return JsonResponse({'error': f'Request parsing error: {str(e)}'}, status=400)
+    
+    try:
+        
+        # Debug: Log what we received
+        print(f"DEBUG: Received POST data: {data}")
+        print(f"DEBUG: User authenticated: {request.user.is_authenticated}")
+        print(f"DEBUG: User: {request.user}")
+        
+        # Debug: Check required fields
+        required_fields = ['subtotal', 'tax_amount', 'discount_amount', 'total_amount', 'payment_method', 'items']
+        for field in required_fields:
+            if field not in data:
+                print(f"DEBUG: Missing required field: {field}")
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        # Validate items
+        if not data['items'] or len(data['items']) == 0:
+            return JsonResponse({'error': 'No items in cart'}, status=400)
         
         # Get or create customer
         customer = None
@@ -275,19 +367,49 @@ def process_sale(request):
             if business.owner != request.user:
                 return JsonResponse({'error': 'Employee not found'}, status=404)
         
+        # Handle credit sales
+        if data['payment_method'] == 'credit':
+            print(f"DEBUG: Processing credit sale")
+            if not customer:
+                print(f"DEBUG: No customer found for credit sale")
+                return JsonResponse({'error': 'Customer required for credit sales'}, status=400)
+            
+            print(f"DEBUG: Customer found: {customer.full_name}")
+            # Check credit limit
+            total_amount = Decimal(str(data['total_amount']))
+            print(f"DEBUG: Total amount: {total_amount}, Current debt: {customer.current_debt}, Credit limit: {customer.credit_limit}")
+            
+            if customer.current_debt + total_amount > customer.credit_limit:
+                exceeded = (customer.current_debt + total_amount) - customer.credit_limit
+                print(f"DEBUG: Credit limit exceeded by {exceeded}")
+                # Allow override if explicitly confirmed by frontend
+                if not data.get('credit_override_confirmed', False):
+                    return JsonResponse({
+                        'error': f'Credit limit exceeded by {exceeded}',
+                        'credit_limit_exceeded': True
+                    }, status=400)
+                
+        print(f"DEBUG: About to create sale object")
+        
         # Create sale
-        sale = Sale(
-            business=business,
-            customer=customer,
-            employee=employee,
-            subtotal=data['subtotal'],
-            tax_amount=data['tax_amount'],
-            discount_amount=data['discount_amount'],
-            total_amount=data['total_amount'],
-            payment_method=data['payment_method'],
-            payment_reference=data.get('payment_reference', ''),
-            notes=data.get('notes', ''),
-        )
+        try:
+            sale = Sale(
+                business=business,
+                customer=customer,
+                employee=employee,
+                subtotal=data['subtotal'],
+                tax_amount=data['tax_amount'],
+                discount_amount=data['discount_amount'],
+                total_amount=data['total_amount'],
+                payment_method=data['payment_method'],
+                payment_reference=data.get('payment_reference', ''),
+                notes=data.get('notes', ''),
+                status='completed' if data['payment_method'] != 'credit' else 'completed'  # All sales are completed
+            )
+            print(f"DEBUG: Sale object created successfully")
+        except Exception as e:
+            print(f"DEBUG: Error creating sale object: {e}")
+            return JsonResponse({'error': f'Error creating sale: {str(e)}'}, status=400)
         
         # Calculate loyalty points if enabled
         if business.settings.enable_customer_loyalty and customer:
@@ -299,31 +421,54 @@ def process_sale(request):
             customer.loyalty_points += points_earned - sale.loyalty_points_used
             customer.save()
         
-        sale.save()
+        try:
+            print(f"DEBUG: About to save sale")
+            sale.save()
+            print(f"DEBUG: Sale saved successfully with ID: {sale.id}")
+        except Exception as e:
+            print(f"DEBUG: Error saving sale: {e}")
+            return JsonResponse({'error': f'Error saving sale: {str(e)}'}, status=400)
+        
+        # Handle credit debt tracking
+        if data['payment_method'] == 'credit' and customer:
+            customer.current_debt += Decimal(str(data['total_amount']))
+            customer.save()
+            
+            # Create debt payment record (showing the new debt)
+            from .models import DebtPayment
+            # Note: DebtPayment model handles debt differently - we don't create a record for debt increase
+            # The customer.current_debt is updated directly above
         
         # Create sale items
+        print(f"DEBUG: About to create {len(data['items'])} sale items")
         for item_data in data['items']:
-            product = Product.objects.get(id=item_data['product_id'], business=business)
-            quantity = item_data['quantity']
-            unit_price = item_data['unit_price']
-            
-            SaleItem.objects.create(
-                sale=sale,
-                product=product,
-                quantity=quantity,
-                unit_price=unit_price,
-                subtotal=quantity * unit_price
-            )
-            
-            # Update inventory
-            Inventory.objects.create(
-                product=product,
-                transaction_type='sale',
-                quantity=-quantity,
-                reference=sale.invoice_number,
-                business=business,
-                created_by=request.user
-            )
+            try:
+                print(f"DEBUG: Creating sale item for product {item_data['product_id']}")
+                product = Product.objects.get(id=item_data['product_id'], business=business)
+                quantity = item_data['quantity']
+                unit_price = item_data['unit_price']
+                
+                SaleItem.objects.create(
+                    sale=sale,
+                    product=product,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    subtotal=quantity * unit_price
+                )
+                
+                # Update inventory
+                Inventory.objects.create(
+                    product=product,
+                    transaction_type='sale',
+                    quantity=-quantity,
+                    reference=sale.invoice_number,
+                    business=business,
+                    created_by=request.user
+                )
+                print(f"DEBUG: Sale item created successfully for product {product.name}")
+            except Exception as e:
+                print(f"DEBUG: Error creating sale item for product {item_data['product_id']}: {e}")
+                return JsonResponse({'error': f'Error creating sale item: {str(e)}'}, status=400)
         
         return JsonResponse({
             'success': True,
@@ -695,12 +840,18 @@ def customer_create(request):
     
     if request.method == 'POST':
         form = CustomerForm(request.POST)
+        print(f"DEBUG: Form data received: {request.POST}")
+        print(f"DEBUG: Form is valid: {form.is_valid()}")
+        if not form.is_valid():
+            print(f"DEBUG: Form errors: {form.errors}")
         if form.is_valid():
             customer = form.save(commit=False)
             customer.business = business
             customer.save()
             messages.success(request, f'Customer "{customer.full_name}" has been created')
             return redirect('pos:customer_list')
+        else:
+            messages.error(request, 'Please correct the errors below')
     else:
         form = CustomerForm()
     
@@ -711,7 +862,7 @@ def customer_create(request):
         'title': 'Create Customer',
     }
     
-    return render(request, 'pos_app/customer_form.html', context)
+    return render(request, 'pos_app/customer_form_new.html', context)
 
 @login_required
 def customer_edit(request, pk):
@@ -729,10 +880,16 @@ def customer_edit(request, pk):
     
     if request.method == 'POST':
         form = CustomerForm(request.POST, instance=customer)
+        print(f"DEBUG: Edit form data received: {request.POST}")
+        print(f"DEBUG: Edit form is valid: {form.is_valid()}")
+        if not form.is_valid():
+            print(f"DEBUG: Edit form errors: {form.errors}")
         if form.is_valid():
             customer = form.save()
             messages.success(request, f'Customer "{customer.full_name}" has been updated')
             return redirect('pos:customer_list')
+        else:
+            messages.error(request, 'Please correct the errors below')
     else:
         form = CustomerForm(instance=customer)
     
@@ -744,7 +901,7 @@ def customer_edit(request, pk):
         'title': 'Edit Customer',
     }
     
-    return render(request, 'pos_app/customer_form.html', context)
+    return render(request, 'pos_app/customer_form_new.html', context)
 
 @login_required
 def customer_delete(request, pk):
@@ -1009,21 +1166,48 @@ def sales_list(request):
         total_tax=Sum('tax_amount'),
         total_discount=Sum('discount_amount')
     )
+
+    # Breakdown by payment method and status
+    payment_breakdown_qs = sales_list.values('payment_method').annotate(method_total=Sum('total_amount'), count=Count('id'))
+    payment_breakdown = {entry['payment_method']: {'total': entry['method_total'], 'count': entry['count']} for entry in payment_breakdown_qs}
+
+    status_breakdown_qs = sales_list.values('status').annotate(status_total=Sum('total_amount'), count=Count('id'))
+    status_breakdown = {entry['status']: {'total': entry['status_total'], 'count': entry['count']} for entry in status_breakdown_qs}
     
     paginator = Paginator(sales_list, 10)  # Show 10 sales per page
     page_number = request.GET.get('page')
     sales = paginator.get_page(page_number)
     
+    # Get customers and employees for filters
+    customers = Customer.objects.filter(business=business).order_by('first_name', 'last_name')
+    employees = Employee.objects.filter(business=business).select_related('user')
+    
+    # For sales on this page, add debt payment info (if linked)
+    sales_with_debt_info = []
+    for s in sales:
+        debt_paid_amount = Decimal('0.00')
+        debt_payments = s.debt_payments.all()
+        for dp in debt_payments:
+            debt_paid_amount += dp.amount
+        debt_paid = debt_paid_amount >= s.total_amount if s.is_credit_sale else False
+        s.debt_paid_amount = debt_paid_amount
+        s.debt_paid = debt_paid
+        sales_with_debt_info.append(s)
+
     context = {
         'business': business,
         'role': role,
-        'sales': sales,
+        'sales': sales_with_debt_info,
         'totals': totals,
+        'payment_breakdown': payment_breakdown,
+        'status_breakdown': status_breakdown,
+        'customers': customers,
+        'employees': employees,
         'start_date': start_date,
         'end_date': end_date,
         'status': status,
         'payment_method': payment_method,
-        'search_query': search_query,
+        'search_query': search_query or '',  # Prevent None
     }
     
     return render(request, 'pos_app/sales.html', context)
@@ -2053,6 +2237,43 @@ def reports(request):
         is_active=True
     ).order_by('stock_quantity')
     
+    # VAT summary for quick overview
+    vat_categories = VATCategory.objects.filter(business=business, is_active=True)
+    vat_summary_quick = []
+    
+    for vat_cat in vat_categories:
+        # Get sales items for this VAT category in the period
+        vat_items = SaleItem.objects.filter(
+            sale__business=business,
+            sale__created_at__gte=start_datetime,
+            sale__created_at__lte=end_datetime,
+            sale__status='completed',
+            product__vat_category=vat_cat
+        )
+        
+        total_excl_vat = Decimal('0.00')
+        total_vat = Decimal('0.00')
+        total_incl_vat = Decimal('0.00')
+        transaction_count = 0
+        
+        for item in vat_items:
+            item_excl_vat = item.product.calculate_price_excluding_vat(item.unit_price)
+            item_vat = item.product.calculate_vat_amount(item.unit_price)
+            
+            total_excl_vat += item_excl_vat * item.quantity
+            total_vat += item_vat * item.quantity  
+            total_incl_vat += item.unit_price * item.quantity
+            transaction_count += 1
+        
+        if transaction_count > 0:  # Only include categories with actual sales
+            vat_summary_quick.append({
+                'category': vat_cat,
+                'total_excl_vat': total_excl_vat,
+                'total_vat': total_vat,
+                'total_incl_vat': total_incl_vat,
+                'transaction_count': transaction_count
+            })
+    
     context = {
         'business': business,
         'role': role,
@@ -2068,6 +2289,8 @@ def reports(request):
         'profit': profit,
         'inventory_value': inventory_value,
         'low_stock_products': low_stock_products,
+        'vat_categories': vat_categories,
+        'vat_summary_quick': vat_summary_quick,
     }
     
     return render(request, 'pos_app/reports.html', context)
@@ -2103,11 +2326,20 @@ def export_sales_report(request):
         start_date = today.replace(day=1)
         end_date = today
     
-    # Get sales data
+    # Get sales data - use timezone-aware datetimes for consistent filtering
+    from django.utils import timezone as django_timezone
+    start_datetime = django_timezone.make_aware(
+        datetime.combine(start_date, datetime.min.time())
+    )
+    end_datetime = django_timezone.make_aware(
+        datetime.combine(end_date, datetime.max.time())
+    )
+    
     sales = Sale.objects.filter(
         business=business,
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime,
+        status='completed'
     ).order_by('created_at')
     
     # Create CSV file
@@ -2193,7 +2425,7 @@ def settings_view(request):
 
     if request.method == 'POST':
         business_form = BusinessForm(request.POST, request.FILES, instance=business)
-        settings_form = BusinessSettingsForm(request.POST, instance=business.settings)
+        settings_form = BusinessSettingsForm(request.POST, instance=business.settings, business=business)
 
         # Validate forms
         if business_form.is_valid() and settings_form.is_valid():
@@ -2211,7 +2443,7 @@ def settings_view(request):
 
     else:
         business_form = BusinessForm(instance=business)
-        settings_form = BusinessSettingsForm(instance=business.settings)
+        settings_form = BusinessSettingsForm(instance=business.settings, business=business)
 
     context = {
         'business': business,
@@ -2221,3 +2453,869 @@ def settings_view(request):
     }
 
     return render(request, 'pos_app/settings.html', context)
+
+@login_required
+def vat_report(request):
+    """Generate comprehensive VAT report for KRA compliance"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        messages.error(request, 'You do not have permission to view VAT reports')
+        return redirect('pos:dashboard')
+    
+    # Get date range
+    today = timezone.now().date()
+    start_date = request.GET.get('start_date', today.replace(day=1).strftime('%Y-%m-%d'))
+    end_date = request.GET.get('end_date', today.strftime('%Y-%m-%d'))
+    
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        start_date = today.replace(day=1)
+        end_date = today
+    
+    # Convert to timezone-aware datetimes
+    from django.utils import timezone as django_timezone
+    start_datetime = django_timezone.make_aware(
+        datetime.combine(start_date, datetime.min.time())
+    )
+    end_datetime = django_timezone.make_aware(
+        datetime.combine(end_date, datetime.max.time())
+    )
+    
+    # Get sales with VAT
+    sales = Sale.objects.filter(
+        business=business,
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime,
+        status='completed'
+    ).select_related('customer').prefetch_related('items__product__vat_category')
+    
+    # Group sales by VAT category
+    vat_summary = {}
+    total_sales_excl_vat = Decimal('0.00')
+    total_vat = Decimal('0.00')
+    total_sales_incl_vat = Decimal('0.00')
+    
+    for sale in sales:
+        for item in sale.items.all():
+            vat_category = item.product.vat_category
+            category_name = vat_category.name if vat_category else 'No VAT Category'
+            category_code = vat_category.code if vat_category else 'N/A'
+            vat_rate = vat_category.rate if vat_category else Decimal('0.00')
+            
+            # Calculate VAT amounts
+            item_excl_vat = item.product.calculate_price_excluding_vat(item.price)
+            item_vat = item.product.calculate_vat_amount(item.price)
+            item_incl_vat = item.price
+            
+            # Multiply by quantity
+            total_excl_vat = item_excl_vat * item.quantity
+            total_vat_amount = item_vat * item.quantity
+            total_incl_vat = item_incl_vat * item.quantity
+            
+            if category_code not in vat_summary:
+                vat_summary[category_code] = {
+                    'name': category_name,
+                    'code': category_code,
+                    'rate': vat_rate,
+                    'sales_excl_vat': Decimal('0.00'),
+                    'vat_amount': Decimal('0.00'),
+                    'sales_incl_vat': Decimal('0.00'),
+                    'transaction_count': 0
+                }
+            
+            vat_summary[category_code]['sales_excl_vat'] += total_excl_vat
+            vat_summary[category_code]['vat_amount'] += total_vat_amount
+            vat_summary[category_code]['sales_incl_vat'] += total_incl_vat
+            vat_summary[category_code]['transaction_count'] += 1
+            
+            # Add to totals
+            total_sales_excl_vat += total_excl_vat
+            total_vat += total_vat_amount
+            total_sales_incl_vat += total_incl_vat
+    
+    # Get VAT categories for the business
+    vat_categories = VATCategory.objects.filter(business=business, is_active=True)
+    
+    context = {
+        'business': business,
+        'role': role,
+        'start_date': start_date,
+        'end_date': end_date,
+        'vat_summary': vat_summary,
+        'vat_categories': vat_categories,
+        'total_sales_excl_vat': total_sales_excl_vat,
+        'total_vat': total_vat,
+        'total_sales_incl_vat': total_sales_incl_vat,
+        'sales_count': sales.count(),
+    }
+    
+    return render(request, 'pos_app/vat_report.html', context)
+
+@login_required
+def export_vat_report(request):
+    """Export VAT report as CSV for KRA submission"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        messages.error(request, 'You do not have permission to export VAT reports')
+        return redirect('pos:vat_report')
+    
+    # Get date range
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    try:
+        if start_date and end_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            today = timezone.now().date()
+            start_date = today.replace(day=1)
+            end_date = today
+    except (ValueError, TypeError):
+        today = timezone.now().date()
+        start_date = today.replace(day=1)
+        end_date = today
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="vat_report_{start_date}_to_{end_date}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Business Name', business.name,
+        'KRA PIN', business.settings.kra_pin or 'Not Set',
+        'VAT Number', business.settings.vat_number or 'Not Set',
+        'Period', f'{start_date} to {end_date}'
+    ])
+    writer.writerow([])  # Empty row
+    writer.writerow([
+        'VAT Category Code', 'VAT Category Name', 'VAT Rate (%)', 
+        'Sales Excl. VAT', 'VAT Amount', 'Sales Incl. VAT', 'Transaction Count'
+    ])
+    
+    # Get sales data (reuse logic from vat_report view)
+    from django.utils import timezone as django_timezone
+    start_datetime = django_timezone.make_aware(
+        datetime.combine(start_date, datetime.min.time())
+    )
+    end_datetime = django_timezone.make_aware(
+        datetime.combine(end_date, datetime.max.time())
+    )
+    
+    sales = Sale.objects.filter(
+        business=business,
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime,
+        status='completed'
+    ).select_related('customer').prefetch_related('items__product__vat_category')
+    
+    # Group sales by VAT category
+    vat_summary = {}
+    total_sales_excl_vat = Decimal('0.00')
+    total_vat = Decimal('0.00')
+    total_sales_incl_vat = Decimal('0.00')
+    
+    for sale in sales:
+        for item in sale.items.all():
+            vat_category = item.product.vat_category
+            category_name = vat_category.name if vat_category else 'No VAT Category'
+            category_code = vat_category.code if vat_category else 'N/A'
+            vat_rate = vat_category.rate if vat_category else Decimal('0.00')
+            
+            # Calculate VAT amounts
+            item_excl_vat = item.product.calculate_price_excluding_vat(item.price)
+            item_vat = item.product.calculate_vat_amount(item.price)
+            
+            # Multiply by quantity
+            total_excl_vat = item_excl_vat * item.quantity
+            total_vat_amount = item_vat * item.quantity
+            total_incl_vat = item.price * item.quantity
+            
+            if category_code not in vat_summary:
+                vat_summary[category_code] = {
+                    'name': category_name,
+                    'code': category_code,
+                    'rate': vat_rate,
+                    'sales_excl_vat': Decimal('0.00'),
+                    'vat_amount': Decimal('0.00'),
+                    'sales_incl_vat': Decimal('0.00'),
+                    'transaction_count': 0
+                }
+            
+            vat_summary[category_code]['sales_excl_vat'] += total_excl_vat
+            vat_summary[category_code]['vat_amount'] += total_vat_amount
+            vat_summary[category_code]['sales_incl_vat'] += total_incl_vat
+            vat_summary[category_code]['transaction_count'] += 1
+            
+            # Add to totals
+            total_sales_excl_vat += total_excl_vat
+            total_vat += total_vat_amount
+            total_sales_incl_vat += total_incl_vat
+    
+    # Write data rows
+    for code, summary in vat_summary.items():
+        writer.writerow([
+            summary['code'],
+            summary['name'],
+            f"{summary['rate']:.2f}",
+            f"{summary['sales_excl_vat']:.2f}",
+            f"{summary['vat_amount']:.2f}",
+            f"{summary['sales_incl_vat']:.2f}",
+            summary['transaction_count']
+        ])
+    
+    # Write totals
+    writer.writerow([])  # Empty row
+    writer.writerow([
+        'TOTALS', '', '',
+        f"{total_sales_excl_vat:.2f}",
+        f"{total_vat:.2f}",
+        f"{total_sales_incl_vat:.2f}",
+        sales.count()
+    ])
+    
+    return response
+
+@login_required
+def vat_management(request):
+    """VAT category management interface"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        messages.error(request, 'You do not have permission to manage VAT settings')
+        return redirect('pos:dashboard')
+    
+    # Get VAT categories
+    vat_categories = VATCategory.objects.filter(business=business).order_by('name')
+    
+    context = {
+        'business': business,
+        'role': role,
+        'vat_categories': vat_categories,
+    }
+    
+    return render(request, 'pos_app/vat_management.html', context)
+
+@login_required
+def add_vat_category(request):
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin']:
+        messages.error(request, 'You do not have permission to add VAT categories')
+        return redirect('pos:vat_management')
+    
+    if request.method == 'POST':
+        from .models import VATCategory
+        
+        name = request.POST.get('name')
+        code = request.POST.get('code')
+        rate = request.POST.get('rate')
+        description = request.POST.get('description', '')
+        
+        if name and code and rate:
+            VATCategory.objects.create(
+                business=business,
+                name=name,
+                code=code,
+                rate=Decimal(rate),
+                description=description,
+                created_by=request.user
+            )
+            messages.success(request, f'VAT category "{name}" has been created')
+        else:
+            messages.error(request, 'Please fill in all required fields')
+    
+    return redirect('pos:vat_management')
+
+@login_required
+def edit_vat_category(request, pk):
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin']:
+        messages.error(request, 'You do not have permission to edit VAT categories')
+        return redirect('pos:vat_management')
+    
+    from .models import VATCategory
+    vat_category = get_object_or_404(VATCategory, pk=pk, business=business)
+    
+    if request.method == 'POST':
+        vat_category.name = request.POST.get('name', vat_category.name)
+        vat_category.code = request.POST.get('code', vat_category.code)
+        vat_category.rate = Decimal(request.POST.get('rate', vat_category.rate))
+        vat_category.description = request.POST.get('description', vat_category.description)
+        vat_category.is_active = request.POST.get('is_active') == 'on'
+        vat_category.save()
+        messages.success(request, f'VAT category "{vat_category.name}" has been updated')
+    
+    return redirect('pos:vat_management')
+
+@login_required
+def delete_vat_category(request, pk):
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin']:
+        messages.error(request, 'You do not have permission to delete VAT categories')
+        return redirect('pos:vat_management')
+    
+    from .models import VATCategory
+    vat_category = get_object_or_404(VATCategory, pk=pk, business=business)
+    
+    if request.method == 'POST':
+        name = vat_category.name
+        vat_category.delete()
+        messages.success(request, f'VAT category "{name}" has been deleted')
+    
+    return redirect('pos:vat_management')
+
+@login_required
+def credit_management(request):
+    """Credit and debt management interface"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        messages.error(request, 'You do not have permission to manage credit')
+        return redirect('pos:dashboard')
+    
+    # Get customers with debt
+    customers_with_debt = Customer.objects.filter(
+        business=business, 
+        current_debt__gt=0
+    ).order_by('-current_debt')
+    
+    # Get all debt payments for reporting
+    debt_payments = DebtPayment.objects.filter(
+        business=business
+    ).order_by('-created_at')[:50]  # Last 50 payments
+    
+    # Calculate summary statistics
+    total_outstanding = customers_with_debt.aggregate(
+        total=Sum('current_debt')
+    )['total'] or Decimal('0.00')
+    
+    customers_count = customers_with_debt.count()
+    
+    # Get overdue debts (customers with debt older than 30 days)
+    from datetime import timedelta
+    overdue_date = timezone.now().date() - timedelta(days=30)
+    overdue_debts = Customer.objects.filter(
+        business=business,
+        current_debt__gt=0
+    ).distinct()
+    
+    context = {
+        'business': business,
+        'role': role,
+        'customers_with_debt': customers_with_debt,
+        'debt_payments': debt_payments,
+        'total_outstanding': total_outstanding,
+        'customers_count': customers_count,
+        'overdue_debts': overdue_debts,
+    }
+    # Add JSON serializable data for client-side report generation
+    # Embed JSON strings so templates can safely parse them into JS
+    context['customers_with_debt_json'] = json.dumps([
+        {
+            'id': c.id,
+            'full_name': c.full_name,
+            'email': c.email,
+            'phone': c.phone,
+            'current_debt': float(c.current_debt),
+            'credit_limit': float(c.credit_limit),
+        } for c in customers_with_debt
+    ])
+    context['debt_payments_json'] = json.dumps([
+        {
+            'id': p.id,
+            'customer_id': p.customer.id,
+            'customer_name': p.customer.full_name,
+            'amount': float(p.amount),
+            'payment_type': p.payment_type,
+            'payment_reference': p.payment_reference,
+            'notes': p.notes,
+            'created_at': p.created_at.isoformat(),
+            'sale_id': p.sale.id if p.sale else None,
+        } for p in debt_payments
+    ])
+
+    # Build a map of outstanding credit sales per customer so payments can be linked to a sale
+    customer_credit_sales = {}
+    for c in customers_with_debt:
+        sales_qs = Sale.objects.filter(business=business, customer=c, payment_method='credit', status='completed')
+        sales_list = []
+        for s in sales_qs:
+            paid_amount = s.debt_payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            remaining = s.total_amount - paid_amount
+            if remaining > 0:
+                sales_list.append({
+                    'id': s.id,
+                    'invoice_number': s.invoice_number,
+                    'total_amount': float(s.total_amount),
+                    'remaining': float(remaining),
+                    'created_at': s.created_at.isoformat(),
+                })
+        customer_credit_sales[c.id] = sales_list
+
+    context['customer_credit_sales_json'] = json.dumps(customer_credit_sales)
+    
+    return render(request, 'pos_app/credit_management.html', context)
+
+@login_required
+def receive_payment(request):
+    """Process debt payment from customer"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return JsonResponse({'error': 'No business found'}, status=404)
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            customer = Customer.objects.get(id=data['customer_id'], business=business)
+            payment_amount = Decimal(str(data['amount']))
+            
+            if payment_amount <= 0:
+                return JsonResponse({'error': 'Payment amount must be greater than zero'}, status=400)
+            
+            if payment_amount > customer.current_debt:
+                return JsonResponse({'error': 'Payment amount cannot exceed current debt'}, status=400)
+            
+            # Update customer debt
+            customer.current_debt -= payment_amount
+            customer.save()
+            
+            # Handle payment allocation to sales
+            remaining_payment = payment_amount
+            payments_created = []
+            
+            sale_id = data.get('sale_id')
+            if sale_id:
+                # Payment applied to specific sale
+                try:
+                    sale_obj = Sale.objects.get(id=sale_id, business=business)
+                    payment_record = DebtPayment.objects.create(
+                        customer=customer,
+                        amount=payment_amount,
+                        payment_type=data.get('payment_method', 'cash'),
+                        payment_reference=data.get('reference', ''),
+                        notes=data.get('notes', ''),
+                        business=business,
+                        created_by=request.user,
+                        sale=sale_obj
+                    )
+                    payments_created.append(payment_record)
+                except Sale.DoesNotExist:
+                    # Fall back to auto-allocation if sale not found
+                    sale_id = None
+            
+            if not sale_id:
+                # Auto-allocate payment to oldest outstanding sales (FIFO)
+                outstanding_sales = Sale.objects.filter(
+                    business=business,
+                    customer=customer,
+                    payment_method='credit',
+                    status='completed'
+                ).order_by('created_at')
+                
+                for sale in outstanding_sales:
+                    if remaining_payment <= 0:
+                        break
+                    
+                    # Calculate how much is already paid for this sale
+                    paid_amount = sale.debt_payments.aggregate(
+                        total=Sum('amount')
+                    )['total'] or Decimal('0.00')
+                    
+                    sale_remaining = sale.total_amount - paid_amount
+                    
+                    if sale_remaining > 0:
+                        # Apply payment to this sale
+                        payment_to_apply = min(remaining_payment, sale_remaining)
+                        
+                        payment_record = DebtPayment.objects.create(
+                            customer=customer,
+                            amount=payment_to_apply,
+                            payment_type=data.get('payment_method', 'cash'),
+                            payment_reference=data.get('reference', ''),
+                            notes=data.get('notes', f'Auto-allocated to {sale.invoice_number}'),
+                            business=business,
+                            created_by=request.user,
+                            sale=sale
+                        )
+                        payments_created.append(payment_record)
+                        remaining_payment -= payment_to_apply
+                
+                # If there's still remaining payment (shouldn't happen with proper validation)
+                if remaining_payment > 0:
+                    payment_record = DebtPayment.objects.create(
+                        customer=customer,
+                        amount=remaining_payment,
+                        payment_type=data.get('payment_method', 'cash'),
+                        payment_reference=data.get('reference', ''),
+                        notes=data.get('notes', 'Unallocated payment'),
+                        business=business,
+                        created_by=request.user,
+                        sale=None
+                    )
+                    payments_created.append(payment_record)
+            
+            return JsonResponse({
+                'success': True,
+                'new_debt': float(customer.current_debt),
+                'message': f'Payment of {business.currency_symbol}{payment_amount} received successfully'
+            })
+            
+        except Customer.DoesNotExist:
+            return JsonResponse({'error': 'Customer not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def add_vat_category(request):
+    """Add new VAT category"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return JsonResponse({'error': 'No business found'}, status=404)
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            name = data.get('name', '').strip()
+            rate = Decimal(str(data.get('rate', 0)))
+            
+            if not name:
+                return JsonResponse({'error': 'Category name is required'}, status=400)
+            
+            if rate < 0:
+                return JsonResponse({'error': 'VAT rate cannot be negative'}, status=400)
+            
+            # Check if category already exists
+            if VATCategory.objects.filter(business=business, name=name).exists():
+                return JsonResponse({'error': 'VAT category with this name already exists'}, status=400)
+            
+            # Create new VAT category
+            vat_category = VATCategory.objects.create(
+                business=business,
+                name=name,
+                rate=rate,
+                created_by=request.user
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'VAT category "{name}" added successfully',
+                'category': {
+                    'id': vat_category.id,
+                    'name': vat_category.name,
+                    'rate': float(vat_category.rate)
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def edit_vat_category(request, pk):
+    """Edit existing VAT category"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return JsonResponse({'error': 'No business found'}, status=404)
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    if request.method == 'POST':
+        try:
+            # Get data from POST request (form data, not JSON)
+            name = request.POST.get('name', '').strip()
+            code = request.POST.get('code', '').strip()
+            rate = Decimal(str(request.POST.get('rate', 0)))
+            description = request.POST.get('description', '').strip()
+            is_active = request.POST.get('is_active') == 'on'
+            
+            if not name:
+                return JsonResponse({'error': 'Category name is required'}, status=400)
+            
+            if rate < 0:
+                return JsonResponse({'error': 'VAT rate cannot be negative'}, status=400)
+            
+            # Get the category using pk from URL
+            try:
+                vat_category = VATCategory.objects.get(id=pk, business=business)
+            except VATCategory.DoesNotExist:
+                return JsonResponse({'error': 'VAT category not found'}, status=404)
+            
+            # Check if another category with the same name exists (excluding current)
+            if VATCategory.objects.filter(business=business, name=name).exclude(id=pk).exists():
+                return JsonResponse({'error': 'VAT category with this name already exists'}, status=400)
+            
+            # Update the category
+            vat_category.name = name
+            vat_category.code = code
+            vat_category.rate = rate
+            vat_category.description = description
+            vat_category.is_active = is_active
+            vat_category.save()
+            
+            # Redirect back to VAT management page
+            messages.success(request, f'VAT category "{name}" updated successfully')
+            return redirect('pos:vat_management')
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def delete_vat_category(request, pk):
+    """Delete VAT category"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return JsonResponse({'error': 'No business found'}, status=404)
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    if request.method == 'POST':
+        try:
+            # Get the category using pk from URL
+            try:
+                vat_category = VATCategory.objects.get(id=pk, business=business)
+            except VATCategory.DoesNotExist:
+                messages.error(request, 'VAT category not found')
+                return redirect('pos:vat_management')
+            
+            # Check if category is in use by any products
+            if vat_category.products.exists():
+                messages.error(request, 'Cannot delete VAT category that is assigned to products. Please reassign products first.')
+                return redirect('pos:vat_management')
+            
+            category_name = vat_category.name
+            vat_category.delete()
+            
+            messages.success(request, f'VAT category "{category_name}" deleted successfully')
+            return redirect('pos:vat_management')
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting VAT category: {str(e)}')
+            return redirect('pos:vat_management')
+    
+    messages.error(request, 'Invalid request method')
+    return redirect('pos:vat_management')
+
+@login_required
+def credit_report_overall(request):
+    """Comprehensive credit report for all customers with debt"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        messages.error(request, 'You do not have permission to view credit reports')
+        return redirect('pos:dashboard')
+    
+    # Get customers with debt
+    customers_with_debt = Customer.objects.filter(
+        business=business, 
+        current_debt__gt=0
+    ).order_by('-current_debt')
+    
+    # Get all debt payments for analysis
+    debt_payments = DebtPayment.objects.filter(
+        business=business
+    ).order_by('-created_at')[:100]  # Last 100 payments
+    
+    # Calculate summary statistics
+    total_outstanding = customers_with_debt.aggregate(
+        total=Sum('current_debt')
+    )['total'] or Decimal('0.00')
+    
+    customers_count = customers_with_debt.count()
+    
+    # Get overdue debts (customers with debt older than 30 days)
+    from datetime import timedelta
+    overdue_date = timezone.now().date() - timedelta(days=30)
+    overdue_customers = []
+    
+    # Build detailed customer data with sales and payment info
+    detailed_customers = []
+    for customer in customers_with_debt:
+        # Get outstanding credit sales
+        outstanding_sales = Sale.objects.filter(
+            business=business,
+            customer=customer,
+            payment_method='credit',
+            status='completed'
+        ).order_by('created_at')
+        
+        sales_data = []
+        for sale in outstanding_sales:
+            paid_amount = sale.debt_payments.aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0.00')
+            remaining = sale.total_amount - paid_amount
+            
+            if remaining > 0:
+                sales_data.append({
+                    'sale': sale,
+                    'paid_amount': paid_amount,
+                    'remaining': remaining,
+                    'is_overdue': sale.created_at.date() < overdue_date
+                })
+        
+        # Get recent payments
+        recent_payments = customer.debt_payments.order_by('-created_at')[:5]
+        
+        # Calculate totals
+        total_paid = customer.debt_payments.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        customer_data = {
+            'customer': customer,
+            'outstanding_sales': sales_data,
+            'recent_payments': recent_payments,
+            'total_paid': total_paid,
+            'credit_utilization': (customer.current_debt / customer.credit_limit * 100) if customer.credit_limit > 0 else 0,
+            'is_over_limit': customer.current_debt > customer.credit_limit,
+            'has_overdue': any(s['is_overdue'] for s in sales_data)
+        }
+        detailed_customers.append(customer_data)
+        
+        if customer_data['has_overdue']:
+            overdue_customers.append(customer)
+    
+    context = {
+        'business': business,
+        'role': role,
+        'detailed_customers': detailed_customers,
+        'total_outstanding': total_outstanding,
+        'customers_count': customers_count,
+        'overdue_count': len(overdue_customers),
+        'recent_payments': debt_payments[:20],  # Last 20 payments for sidebar
+        'report_generated_at': timezone.now(),
+    }
+    
+    return render(request, 'pos_app/credit_report_overall.html', context)
+
+@login_required
+def credit_report_customer(request, customer_id):
+    """Detailed credit report for a specific customer"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return redirect('pos:business_setup')
+    
+    # Get user role
+    role = get_user_role(request.user, business)
+    if role not in ['owner', 'admin', 'manager']:
+        messages.error(request, 'You do not have permission to view credit reports')
+        return redirect('pos:dashboard')
+    
+    customer = get_object_or_404(Customer, id=customer_id, business=business)
+    
+    # Get all credit sales for this customer
+    credit_sales = Sale.objects.filter(
+        business=business,
+        customer=customer,
+        payment_method='credit'
+    ).order_by('created_at')
+    
+    # Build sales data with payment details
+    sales_data = []
+    total_credit_sales = Decimal('0.00')
+    total_paid = Decimal('0.00')
+    
+    for sale in credit_sales:
+        payments = sale.debt_payments.order_by('created_at')
+        paid_amount = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        remaining = sale.total_amount - paid_amount
+        
+        sales_data.append({
+            'sale': sale,
+            'payments': payments,
+            'paid_amount': paid_amount,
+            'remaining': remaining,
+            'is_fully_paid': remaining <= 0,
+            'payment_percentage': (paid_amount / sale.total_amount * 100) if sale.total_amount > 0 else 0
+        })
+        
+        total_credit_sales += sale.total_amount
+        total_paid += paid_amount
+    
+    # Get all payments for this customer (including unallocated)
+    all_payments = customer.debt_payments.order_by('-created_at')
+    
+    # Calculate payment method breakdown
+    payment_method_breakdown = all_payments.values('payment_type').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    context = {
+        'business': business,
+        'role': role,
+        'customer': customer,
+        'sales_data': sales_data,
+        'all_payments': all_payments,
+        'payment_method_breakdown': payment_method_breakdown,
+        'total_credit_sales': total_credit_sales,
+        'total_paid': total_paid,
+        'total_outstanding': customer.current_debt,
+        'credit_utilization': (customer.current_debt / customer.credit_limit * 100) if customer.credit_limit > 0 else 0,
+        'is_over_limit': customer.current_debt > customer.credit_limit,
+        'report_generated_at': timezone.now(),
+    }
+    
+    return render(request, 'pos_app/credit_report_customer.html', context)

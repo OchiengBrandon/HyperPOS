@@ -138,6 +138,67 @@
             </div>
         </div>
 
+        <!-- VAT Settings Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-percentage me-2"></i>VAT Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.enable_vat|as_crispy_field }}
+                        {% if settings_form.enable_vat.errors %}
+                            <div class="text-danger">{{ settings_form.enable_vat.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.vat_inclusive_pricing|as_crispy_field }}
+                        {% if settings_form.vat_inclusive_pricing.errors %}
+                            <div class="text-danger">{{ settings_form.vat_inclusive_pricing.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.show_vat_on_receipt|as_crispy_field }}
+                        {% if settings_form.show_vat_on_receipt.errors %}
+                            <div class="text-danger">{{ settings_form.show_vat_on_receipt.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.default_vat_category|as_crispy_field }}
+                        {% if settings_form.default_vat_category.errors %}
+                            <div class="text-danger">{{ settings_form.default_vat_category.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.vat_rounding|as_crispy_field }}
+                        {% if settings_form.vat_rounding.errors %}
+                            <div class="text-danger">{{ settings_form.vat_rounding.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ settings_form.kra_pin|as_crispy_field }}
+                        {% if settings_form.kra_pin.errors %}
+                            <div class="text-danger">{{ settings_form.kra_pin.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ settings_form.vat_number|as_crispy_field }}
+                        {% if settings_form.vat_number.errors %}
+                            <div class="text-danger">{{ settings_form.vat_number.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex justify-content-end">
             <button type="submit" class="btn btn-primary">
                 <i class="fas fa-save me-1"></i> Save Changes

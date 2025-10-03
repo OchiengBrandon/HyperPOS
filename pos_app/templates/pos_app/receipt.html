@@ -325,37 +325,60 @@
             <tbody>
                 {% for item in items %}
                     <tr class="font-b">
-                        <td>{{ item.product.name }}</td>
+                        <td>
+                            {{ item.product.name }}
+                            {% if item.product.vat_category %}
+                                <span class="font-small"> [{{ item.product.vat_category.code }}]</span>
+                            {% endif %}
+                        </td>
                         <td class="quantity">{{ item.quantity }}</td>
-                        <td class="amount">{{ business.currency_symbol }} {{ item.unit_price|floatformat:2 }}</td>
-                        <td class="amount">{{ business.currency_symbol }} {{ item.subtotal|floatformat:2 }}</td>
+                        <td class="amount">{{ item.unit_price|floatformat:2 }}</td>
+                        <td class="amount">{{ item.subtotal|floatformat:2 }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
         
         <div class="receipt-totals">
+            <!-- Subtotal before VAT -->
             <div class="receipt-total-row">
-                <span>Subtotal:</span>
-                <span>{{ business.currency_symbol }} {{ sale.subtotal|floatformat:2 }}</span>
+                <span>Subtotal (Excl. VAT):</span>
+                <span>{{ business.currency_symbol }} {{ sale.subtotal_excluding_vat|floatformat:2 }}</span>
             </div>
             
-            {% if sale.tax_amount > 0 %}
+            <!-- VAT Breakdown by Category -->
+            {% if sale.vat_breakdown %}
+                {% for vat_info in sale.vat_breakdown %}
+                    <div class="receipt-total-row font-small">
+                        <span>{{ vat_info.category_name }} ({{ vat_info.rate }}%):</span>
+                        <span>{{ business.currency_symbol }} {{ vat_info.amount|floatformat:2 }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <!-- Total VAT -->
+            {% if sale.total_vat_amount > 0 %}
                 <div class="receipt-total-row">
-                    <span>Tax ({{ business.settings.tax_rate }}%):</span>
-                    <span>{{ business.currency_symbol }} {{ sale.tax_amount|floatformat:2 }}</span>
+                    <span>Total VAT:</span>
+                    <span>{{ business.currency_symbol }} {{ sale.total_vat_amount|floatformat:2 }}</span>
                 </div>
             {% endif %}
+            
+            <!-- Subtotal including VAT -->
+            <div class="receipt-total-row">
+                <span>Subtotal (Incl. VAT):</span>
+                <span>{{ business.currency_symbol }} {{ sale.subtotal|floatformat:2 }}</span>
+            </div>
             
             {% if sale.discount_amount > 0 %}
                 <div class="receipt-total-row">
                     <span>Discount:</span>
-                    <span>{{ business.currency_symbol }} {{ sale.discount_amount|floatformat:2 }}</span>
+                    <span>- {{ business.currency_symbol }} {{ sale.discount_amount|floatformat:2 }}</span>
                 </div>
             {% endif %}
             
             <div class="receipt-total-row final">
-                <span>Total:</span>
+                <span>TOTAL PAYABLE:</span>
                 <span>{{ business.currency_symbol }} {{ sale.total_amount|floatformat:2 }}</span>
             </div>
             

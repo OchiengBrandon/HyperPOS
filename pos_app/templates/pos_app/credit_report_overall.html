@@ -1,0 +1,296 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Credit Report - Overall{% endblock %}
+
+{% block extra_css %}
+<style>
+    .credit-report {
+        background: #f8f9fa;
+        min-height: calc(100vh - 120px);
+    }
+    
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-left: 4px solid #667eea;
+        height: 100%;
+    }
+    
+    .stats-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .customer-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: transform 0.2s ease;
+    }
+    
+    .customer-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .customer-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .debt-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .overdue-badge {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .over-limit-badge {
+        background: linear-gradient(135deg, #ffa726, #ff9800);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .progress-custom {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-bar-custom {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.6s ease;
+    }
+    
+    .print-btn {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .print-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .customer-card { page-break-inside: avoid; }
+        .report-header { background: #667eea !important; -webkit-print-color-adjust: exact; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="credit-report">
+    <div class="container-fluid">
+        <!-- Report Header -->
+        <div class="report-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">Credit Report - Overall</h1>
+                    <p class="mb-0 opacity-75">{{ business.name }} | Generated: {{ report_generated_at|date:"M d, Y H:i" }}</p>
+                </div>
+                <div class="col-md-4 text-end no-print">
+                    <button class="btn print-btn me-2" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Print Report
+                    </button>
+                    <a href="{% url 'pos:credit_management' %}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <div class="stats-value text-danger">{{ business.currency_symbol }}{{ total_outstanding|floatformat:0 }}</div>
+                    <div class="text-muted">Total Outstanding</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <div class="stats-value text-primary">{{ customers_count }}</div>
+                    <div class="text-muted">Customers with Debt</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <div class="stats-value text-warning">{{ overdue_count }}</div>
+                    <div class="text-muted">Overdue Accounts</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Details -->
+        <div class="row">
+            <div class="col-md-8">
+                <h4 class="mb-3">Customer Details</h4>
+                {% for customer_data in detailed_customers %}
+                <div class="customer-card">
+                    <div class="customer-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h5 class="mb-1">{{ customer_data.customer.full_name }}</h5>
+                                <p class="text-muted mb-0">
+                                    {% if customer_data.customer.phone %}
+                                        <i class="fas fa-phone me-1"></i>{{ customer_data.customer.phone }}
+                                    {% endif %}
+                                    {% if customer_data.customer.email %}
+                                        <i class="fas fa-envelope ms-3 me-1"></i>{{ customer_data.customer.email }}
+                                    {% endif %}
+                                </p>
+                                <div class="mt-2">
+                                    {% if customer_data.is_over_limit %}
+                                        <span class="over-limit-badge">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Over Limit
+                                        </span>
+                                    {% endif %}
+                                    {% if customer_data.has_overdue %}
+                                        <span class="overdue-badge ms-1">
+                                            <i class="fas fa-clock me-1"></i>Overdue
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="debt-amount text-danger">{{ business.currency_symbol }}{{ customer_data.customer.current_debt|floatformat:2 }}</div>
+                                <small class="text-muted">
+                                    Limit: {{ business.currency_symbol }}{{ customer_data.customer.credit_limit|floatformat:0 }} |
+                                    Utilization: {{ customer_data.credit_utilization|floatformat:1 }}%
+                                </small>
+                                <div class="progress-custom mt-2">
+                                    <div class="progress-bar-custom" style="width: {{ customer_data.credit_utilization|floatformat:1 }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Outstanding Invoices</h6>
+                                {% if customer_data.outstanding_sales %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Invoice</th>
+                                                    <th>Date</th>
+                                                    <th>Total</th>
+                                                    <th>Remaining</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for sale_data in customer_data.outstanding_sales %}
+                                                <tr {% if sale_data.is_overdue %}class="table-warning"{% endif %}>
+                                                    <td>{{ sale_data.sale.invoice_number }}</td>
+                                                    <td>{{ sale_data.sale.created_at|date:"M d" }}</td>
+                                                    <td>{{ business.currency_symbol }}{{ sale_data.sale.total_amount|floatformat:2 }}</td>
+                                                    <td class="text-danger">{{ business.currency_symbol }}{{ sale_data.remaining|floatformat:2 }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted">No outstanding invoices</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h6>Recent Payments</h6>
+                                {% if customer_data.recent_payments %}
+                                    {% for payment in customer_data.recent_payments %}
+                                    <div class="d-flex justify-content-between border-bottom py-2">
+                                        <div>
+                                            <small>{{ payment.created_at|date:"M d, Y" }}</small><br>
+                                            <small class="text-muted">{{ payment.payment_type|title }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <strong>{{ business.currency_symbol }}{{ payment.amount|floatformat:2 }}</strong>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted">No recent payments</p>
+                                {% endif %}
+                                
+                                <div class="mt-3 no-print">
+                                    <a href="{% url 'pos:credit_report_customer' customer_data.customer.id %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i>Detailed Report
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5>No Outstanding Debts</h5>
+                    <p class="text-muted">All customers have cleared their debts.</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-md-4">
+                <div class="customer-card">
+                    <div class="p-3">
+                        <h6 class="mb-3">Recent Payment Activity</h6>
+                        {% for payment in recent_payments %}
+                        <div class="d-flex justify-content-between border-bottom py-2">
+                            <div>
+                                <strong class="small">{{ payment.customer.full_name }}</strong><br>
+                                <small class="text-muted">{{ payment.created_at|date:"M d, H:i" }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-success">{{ business.currency_symbol }}{{ payment.amount|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted">No recent payments</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -51,12 +51,11 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th scope="col">Image</th>
-                            <th scope="col">Name</th>
-                            <th scope="col">SKU</th>
+                            <th scope="col">Product</th>
+                            <th scope="col">SKU/Barcode</th>
                             <th scope="col">Category</th>
-                            <th scope="col">Selling Price</th>
-                            <th scope="col">Purchase Price</th>
+                            <th scope="col">VAT</th>
+                            <th scope="col">Price</th>
                             <th scope="col">Stock</th>
                             <th scope="col">Status</th>
                             <th scope="col">Actions</th>
@@ -66,24 +65,50 @@
                         {% for product in products %}
                             <tr>
                                 <td>
-                                    {% if product.image %}
-                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width: 40px; height: 40px; object-fit: contain;">
-                                    {% else %}
-                                        <div class="text-center text-muted" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fas fa-box"></i>
+                                    <div class="d-flex align-items-center">
+                                        <div class="product-icon me-3">
+                                            <i class="bi bi-box-seam text-primary fs-4"></i>
                                         </div>
+                                        <div>
+                                            <strong>{{ product.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ product.description|truncatewords:8|default:"No description" }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        {% if product.sku %}
+                                            <span class="badge bg-info">{{ product.sku }}</span>
+                                        {% endif %}
+                                        {% if product.barcode %}
+                                            <br><small class="text-muted">{{ product.barcode }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ product.category.name }}</span>
+                                </td>
+                                <td>
+                                    {% if product.vat_category %}
+                                        <span class="badge bg-{% if product.vat_category.code == 'A' %}primary{% elif product.vat_category.code == 'B' %}success{% else %}warning{% endif %}">
+                                            {{ product.vat_category.code }} - {{ product.vat_category.rate }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">No VAT</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ product.name }}</td>
-                                <td>{{ product.sku|default:"-" }}</td>
-                                <td>{{ product.category.name }}</td>
-                                <td>{{ business.currency_symbol }} {{ product.selling_price|floatformat:2 }}</td>
-                                <td>{{ business.currency_symbol }} {{ product.purchase_price|floatformat:2 }}</td>
+                                <td>
+                                    <strong>{{ business.currency_symbol }} {{ product.selling_price|floatformat:2 }}</strong>
+                                    <br>
+                                    <small class="text-muted">Cost: {{ business.currency_symbol }} {{ product.purchase_price|floatformat:2 }}</small>
+                                </td>
                                 <td>
                                     {% if product.stock_quantity <= business.settings.low_stock_threshold %}
-                                        <span class="badge bg-danger">{{ product.stock_quantity }}</span>
+                                        <span class="badge bg-danger fs-6">{{ product.stock_quantity }} {{ product.unit|default:"pcs" }}</span>
+                                        <br><small class="text-danger">Low Stock</small>
                                     {% else %}
-                                        <span class="badge bg-success">{{ product.stock_quantity }}</span>
+                                        <span class="badge bg-success fs-6">{{ product.stock_quantity }} {{ product.unit|default:"pcs" }}</span>
                                     {% endif %}
                                 </td>
                                 <td>

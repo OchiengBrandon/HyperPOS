@@ -1,0 +1,806 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Credit Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+        --info-color: #3b82f6;
+        --light-bg: #f8fafc;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --border-radius: 12px;
+    }
+
+    .credit-management-container {
+        background: var(--light-bg);
+        min-height: calc(100vh - 120px);
+        padding: 2rem 0;
+    }
+
+    .credit-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+        color: white;
+        padding: 2rem;
+        border-radius: var(--border-radius);
+        margin-bottom: 2rem;
+        box-shadow: var(--card-shadow);
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        text-align: center;
+    }
+
+    .stats-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .debt-card {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .debt-card-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, var(--success-color), #059669);
+        color: white;
+    }
+
+    .customer-debt-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+
+    .customer-debt-item:last-child {
+        border-bottom: none;
+    }
+
+    .customer-info h6 {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .debt-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .btn-receive-payment {
+        background: linear-gradient(135deg, var(--success-color), #059669);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-receive-payment:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+        color: white;
+    }
+
+    .overdue-indicator {
+        background: linear-gradient(135deg, var(--danger-color), #dc2626);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .payment-history-table {
+        background: white;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--card-shadow);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="credit-management-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="credit-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-2">Credit Management</h1>
+                    <p class="mb-0 opacity-75">Manage customer debts and receive payments</p>
+                </div>
+                <div class="text-end">
+                    <button class="btn btn-outline-light" onclick="location.reload()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                    <button class="btn btn-light ms-2" onclick="openCreditReport()">
+                        <i class="fas fa-print me-2"></i>Print Credit Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-value">{{ business.currency_symbol }}{{ total_outstanding|floatformat:0 }}</div>
+                    <div class="text-muted">Total Outstanding</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-value">{{ customers_count }}</div>
+                    <div class="text-muted">Customers with Debt</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-value text-danger">{{ overdue_debts|length }}</div>
+                    <div class="text-muted">Overdue Accounts</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Customers with Debt -->
+            <div class="col-md-8">
+                <div class="debt-card">
+                    <div class="debt-card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users me-2"></i>Customers with Outstanding Debt
+                        </h5>
+                    </div>
+                    <div class="debt-card-body">
+                        {% for customer in customers_with_debt %}
+                        <div class="customer-debt-item">
+                            <div class="customer-info flex-grow-1">
+                                <h6>{{ customer.full_name }}</h6>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-envelope me-1"></i>{{ customer.email|default:"No email" }}
+                                    <i class="fas fa-phone ms-3 me-1"></i>{{ customer.phone|default:"No phone" }}
+                                </p>
+                                {% if customer.current_debt > customer.credit_limit %}
+                                <span class="overdue-indicator">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Over Limit
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="text-end me-3">
+                                <div class="debt-amount text-danger">
+                                    {{ business.currency_symbol }}{{ customer.current_debt|floatformat:2 }}
+                                </div>
+                                <small class="text-muted">
+                                    Limit: {{ business.currency_symbol }}{{ customer.credit_limit|floatformat:0 }}
+                                </small>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <button class="btn btn-receive-payment" 
+                                    onclick="openPaymentModal({{ customer.id }})">
+                                    <i class="fas fa-money-bill-wave me-1"></i>Receive Payment
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" 
+                                    onclick="openCustomerReport({{ customer.id }})">
+                                    <i class="fas fa-file-alt me-1"></i>Report
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5>No Outstanding Debts</h5>
+                            <p class="text-muted">All customers have cleared their debts.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Payment History -->
+            <div class="col-md-4">
+                <div class="payment-history-table">
+                    <div class="p-3 bg-light border-bottom">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Recent Payments
+                        </h6>
+                    </div>
+                    <div class="p-0">
+                        {% for payment in debt_payments|slice:":10" %}
+                        <div class="p-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="text-sm">{{ payment.customer.full_name }}</strong>
+                                <span class="badge {% if payment.payment_type == 'payment' %}bg-success{% else %}bg-warning{% endif %}">
+                                    {% if payment.payment_type == 'payment' %}
+                                        -{{ business.currency_symbol }}{{ payment.amount }}
+                                    {% else %}
+                                        +{{ business.currency_symbol }}{{ payment.amount }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <small class="text-muted">
+                                {{ payment.created_at|date:"M d, H:i" }}
+                                {% if payment.payment_method %}
+                                    • {{ payment.get_payment_method_display }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No recent payments</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Receive Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="payment-form">
+                    <input type="hidden" id="customer-id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Customer:</label>
+                        <div id="customer-name" class="form-control-plaintext"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Current Debt:</label>
+                        <div id="current-debt" class="form-control-plaintext text-danger fs-5"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="payment-amount" class="form-label">Payment Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">{{ business.currency_symbol }}</span>
+                            <input type="number" class="form-control" id="payment-amount" 
+                                   step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="payment-method" class="form-label">Payment Method</label>
+                        <select class="form-select" id="payment-method">
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="mobile_payment">Mobile Payment</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="link-sale" class="form-label">Link to Sale (optional)</label>
+                        <select id="link-sale" class="form-select">
+                            <option value="">-- Select sale to apply payment to --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="payment-reference" class="form-label">Reference (Optional)</label>
+                        <input type="text" class="form-control" id="payment-reference" 
+                               placeholder="Transaction ID, receipt number, etc.">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="payment-notes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="payment-notes" rows="2" 
+                                  placeholder="Additional notes about this payment"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="process-payment-btn" class="btn btn-success">
+                    <i class="fas fa-check-circle me-1"></i>Process Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let paymentModal;
+let currentCustomerDebt = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+    
+    document.getElementById('process-payment-btn').addEventListener('click', processPayment);
+    
+    // Auto-calculate remaining debt
+    document.getElementById('payment-amount').addEventListener('input', function() {
+        const amount = parseFloat(this.value) || 0;
+        const remaining = Math.max(0, currentCustomerDebt - amount);
+        
+        if (amount > currentCustomerDebt) {
+            this.value = currentCustomerDebt.toFixed(2);
+        }
+    });
+});
+
+function openPaymentModal(customerId) {
+    // Lookup customer details from the embedded JSON
+    const cust = (window.customersWithDebt || []).find(c => c.id == customerId);
+    const customerName = cust ? cust.full_name : '';
+    const debtAmount = cust ? parseFloat(cust.current_debt) : 0;
+
+    currentCustomerDebt = debtAmount;
+
+    document.getElementById('customer-id').value = customerId;
+    document.getElementById('customer-name').textContent = customerName;
+    document.getElementById('current-debt').textContent = '{{ business.currency_symbol }}' + debtAmount.toFixed(2);
+    document.getElementById('payment-amount').value = '';
+    document.getElementById('payment-amount').max = debtAmount;
+    document.getElementById('payment-method').value = 'cash';
+    document.getElementById('payment-reference').value = '';
+    document.getElementById('payment-notes').value = '';
+
+    // Populate sale selector for this customer so the user can link the payment
+    try {
+        populateSaleSelect(customerId);
+    } catch (e) {
+        console.warn('populateSaleSelect error', e);
+    }
+
+    paymentModal.show();
+
+    setTimeout(() => {
+        document.getElementById('payment-amount').focus();
+    }, 500);
+}
+
+// Populate sale select when opening modal
+function populateSaleSelect(customerId) {
+    const select = document.getElementById('link-sale');
+    select.innerHTML = '<option value="">-- Select sale to apply payment to --</option>';
+    const salesMap = window.customerCreditSales || {};
+    const list = salesMap[customerId] || [];
+    list.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        const remaining = Number(s.remaining || 0).toFixed(2);
+        const created = s.created_at ? new Date(s.created_at).toLocaleString() : '';
+        opt.textContent = `${s.invoice_number} - Remaining: {{ business.currency_symbol }}${remaining} - ${created}`;
+        select.appendChild(opt);
+    });
+}
+
+function processPayment() {
+    const customerId = document.getElementById('customer-id').value;
+    const amount = parseFloat(document.getElementById('payment-amount').value);
+    const paymentMethod = document.getElementById('payment-method').value;
+    const reference = document.getElementById('payment-reference').value;
+    const notes = document.getElementById('payment-notes').value;
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid payment amount');
+        return;
+    }
+    
+    if (amount > currentCustomerDebt) {
+        alert('Payment amount cannot exceed the current debt');
+        return;
+    }
+    
+    const paymentData = {
+        customer_id: customerId,
+        amount: amount,
+        payment_method: paymentMethod,
+        reference: reference,
+        notes: notes
+    };
+    const saleSelect = document.getElementById('link-sale');
+    const saleId = saleSelect ? (saleSelect.value || null) : null;
+    paymentData.sale_id = saleId;
+    
+    fetch('{% url "pos:receive_payment" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(paymentData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            paymentModal.hide();
+            alert(data.message);
+            location.reload(); // Refresh the page to show updated data
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while processing the payment');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<!-- Credit Report Modal -->
+<div class="modal fade" id="creditReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Credit Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="credit-report-tools" class="mb-3 d-flex justify-content-between align-items-center">
+                    <div class="input-group w-50">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="credit-report-search" class="form-control" placeholder="Search customers or invoices...">
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-secondary me-2" id="export-csv-btn"><i class="fas fa-file-csv me-1"></i>Export CSV</button>
+                        <button class="btn btn-primary" id="refresh-report-btn"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
+                    </div>
+                </div>
+                <div id="credit-report-content" class="table-responsive">
+                    <!-- Report populated by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printCreditReport()">Print</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Safely parse embedded JSON from the server; fall back to empty arrays/objects on error
+try {
+    window.customersWithDebt = JSON.parse('{{ customers_with_debt_json|default:'[]'|escapejs }}');
+} catch (e) {
+    console.warn('Failed to parse customers_with_debt_json:', e);
+    window.customersWithDebt = [];
+}
+try {
+    window.debtPayments = JSON.parse('{{ debt_payments_json|default:'[]'|escapejs }}');
+} catch (e) {
+    console.warn('Failed to parse debt_payments_json:', e);
+    window.debtPayments = [];
+}
+try {
+    window.customerCreditSales = JSON.parse('{{ customer_credit_sales_json|default:'{}'|escapejs }}');
+} catch (e) {
+    console.warn('Failed to parse customer_credit_sales_json:', e);
+    window.customerCreditSales = {};
+}
+
+function openCreditReport(customerId=null) {
+    console.log('openCreditReport called with customerId:', customerId);
+    console.log('window.customersWithDebt:', window.customersWithDebt);
+    console.log('window.debtPayments:', window.debtPayments);
+    console.log('window.customerCreditSales:', window.customerCreditSales);
+    
+    try {
+        const generatedAt = new Date().toLocaleString();
+        const customersList = (window.customersWithDebt || []);
+        const list = customerId ? customersList.filter(c=>c.id==customerId) : customersList;
+        
+        console.log('Processing customer list:', list);
+
+    let html = `
+        <div class="p-3 bg-white rounded">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h5 class="mb-0">Credit Report</h5>
+                    <small class="text-muted">Generated: ${generatedAt}</small>
+                </div>
+                <div class="text-end">
+                    <strong>Total Outstanding: {{ business.currency_symbol }}${Number({{ total_outstanding|default:0 }}||0).toFixed(2)}</strong>
+                </div>
+            </div>
+            <table class="table table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Customer</th>
+                        <th>Current Debt</th>
+                        <th>Credit Limit</th>
+                        <th>Outstanding Invoices</th>
+                        <th>Last Payment</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    list.forEach(c => {
+        const sales = (customerCreditSales[c.id] || []).filter(s => Number(s.remaining) > 0);
+        const customerPaymentList = debtPayments.filter(p => p.customer_id === c.id);
+        const totalPaid = customerPaymentList.reduce((sum, p) => sum + Number(p.amount), 0);
+        const lastPayment = customerPaymentList.length ? customerPaymentList[0] : null;
+        
+        let invoicesHtml = '';
+        if (sales.length > 0) {
+            sales.forEach(s => { 
+                const paidAmount = Number(s.total_amount) - Number(s.remaining);
+                invoicesHtml += `
+                    <div class="mb-1">
+                        <strong>${s.invoice_number}</strong><br>
+                        <small class="text-muted">
+                            Total: {{ business.currency_symbol }}${Number(s.total_amount).toFixed(2)} | 
+                            Paid: {{ business.currency_symbol }}${paidAmount.toFixed(2)} | 
+                            Remaining: <span class="text-danger">{{ business.currency_symbol }}${Number(s.remaining).toFixed(2)}</span>
+                        </small>
+                    </div>
+                `;
+            });
+        }
+        
+        const paymentHistory = customerPaymentList.slice(0, 3).map(p => 
+            `<div class="small text-muted">${new Date(p.created_at).toLocaleDateString()}: {{ business.currency_symbol }}${Number(p.amount).toFixed(2)}</div>`
+        ).join('');
+        
+        html += `
+            <tr>
+                <td>
+                    <div>
+                        <strong>${c.full_name}</strong>
+                        <br><small class="text-muted">${c.phone||''} ${c.email?(' • '+c.email):''}</small>
+                        <br><small class="badge ${Number(c.current_debt) > Number(c.credit_limit) ? 'bg-danger' : 'bg-warning'} text-white">
+                            ${Math.round((Number(c.current_debt) / Number(c.credit_limit)) * 100)}% of limit used
+                        </small>
+                    </div>
+                </td>
+                <td>
+                    <div class="text-danger fw-bold">{{ business.currency_symbol }}${Number(c.current_debt).toFixed(2)}</div>
+                    <small class="text-muted">Total Paid: {{ business.currency_symbol }}${totalPaid.toFixed(2)}</small>
+                </td>
+                <td>{{ business.currency_symbol }}${Number(c.credit_limit).toFixed(2)}</td>
+                <td>${invoicesHtml || '<span class="text-muted">No outstanding invoices</span>'}</td>
+                <td>
+                    ${paymentHistory || '<span class="text-muted">No payments</span>'}
+                    ${lastPayment ? `<div class="mt-1"><small class="text-primary">Last: ${new Date(lastPayment.created_at).toLocaleDateString()}</small></div>` : ''}
+                </td>
+            </tr>
+        `;
+    });
+
+        html += `</tbody></table></div>`;
+        document.getElementById('credit-report-content').innerHTML = html;
+        console.log('Report HTML generated, showing modal...');
+        const modal = new bootstrap.Modal(document.getElementById('creditReportModal'));
+        modal.show();
+        console.log('Modal show() called');
+    } catch (error) {
+        console.error('Error in openCreditReport:', error);
+        alert('Error generating credit report: ' + error.message);
+    }
+}
+
+// Export currently visible report to CSV
+function exportReportToCSV() {
+    const rows = [];
+    const table = document.querySelector('#credit-report-content table');
+    if (!table) return alert('No report to export');
+    const headers = Array.from(table.querySelectorAll('thead th')).map(h => h.textContent.trim());
+    rows.push(headers.join(','));
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const cols = Array.from(tr.querySelectorAll('td')).map(td => '"' + td.textContent.replace(/"/g, '""').trim() + '"');
+        rows.push(cols.join(','));
+    });
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `credit-report-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+// Individual customer report
+function openCustomerReport(customerId) {
+    console.log('Opening customer report for ID:', customerId);
+    try {
+        const customer = (window.customersWithDebt || []).find(c => c.id == customerId);
+        if (!customer) {
+            alert('Customer not found');
+            return;
+        }
+        
+        const customerSales = (window.customerCreditSales[customerId] || []);
+        const customerPayments = (window.debtPayments || []).filter(p => p.customer_id == customerId);
+        
+        const generatedAt = new Date().toLocaleString();
+        
+        let html = `
+            <div class="p-4 bg-white rounded">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                    <div>
+                        <h4 class="mb-1">${customer.full_name} - Credit Report</h4>
+                        <p class="text-muted mb-0">Generated: ${generatedAt}</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="h5 mb-1 text-danger">Current Debt: {{ business.currency_symbol }}${Number(customer.current_debt).toFixed(2)}</div>
+                        <small class="text-muted">Credit Limit: {{ business.currency_symbol }}${Number(customer.credit_limit).toFixed(2)}</small>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6>Outstanding Invoices</h6>
+                        ${customerSales.length > 0 ? `
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead class="table-light">
+                                        <tr><th>Invoice</th><th>Date</th><th>Total</th><th>Remaining</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${customerSales.map(s => `
+                                            <tr>
+                                                <td>${s.invoice_number}</td>
+                                                <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                                                <td>{{ business.currency_symbol }}${Number(s.total_amount).toFixed(2)}</td>
+                                                <td>{{ business.currency_symbol }}${Number(s.remaining).toFixed(2)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<p class="text-muted">No outstanding invoices</p>'}
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>Recent Payments</h6>
+                        ${customerPayments.length > 0 ? `
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead class="table-light">
+                                        <tr><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${customerPayments.slice(-10).map(p => `
+                                            <tr>
+                                                <td>${new Date(p.created_at).toLocaleDateString()}</td>
+                                                <td>{{ business.currency_symbol }}${Number(p.amount).toFixed(2)}</td>
+                                                <td>${p.payment_type || 'Cash'}</td>
+                                                <td>${p.payment_reference || '—'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<p class="text-muted">No payments recorded</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('credit-report-content').innerHTML = html;
+        const modal = new bootstrap.Modal(document.getElementById('creditReportModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error opening customer report:', error);
+        alert('Error opening customer report: ' + error.message);
+    }
+}
+
+// Hook up export and refresh buttons
+document.addEventListener('DOMContentLoaded', function() {
+    const exportBtn = document.getElementById('export-csv-btn');
+    if (exportBtn) exportBtn.addEventListener('click', exportReportToCSV);
+    const refreshBtn = document.getElementById('refresh-report-btn');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => openCreditReport());
+    const search = document.getElementById('credit-report-search');
+    if (search) search.addEventListener('input', function() {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('#credit-report-content tbody tr').forEach(tr => {
+            tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+});
+
+function printCreditReport() {
+    try {
+        // Ensure report is populated
+        const reportContainer = document.getElementById('credit-report-content');
+        if (!reportContainer || !reportContainer.innerHTML.trim()) {
+            // populate synchronously
+            openCreditReport();
+        }
+
+        const content = reportContainer.innerHTML;
+        const cssFiles = [
+            (location.origin + '/static/css/base.css'),
+            (location.origin + '/static/css/pos.css')
+        ];
+
+        // Try to open a new window first (user gesture should allow it). If blocked, fallback to iframe.
+        const w = window.open('', '_blank');
+        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Credit Report</title>` +
+            cssFiles.map(href => `<link rel="stylesheet" href="${href}">`).join('') +
+            `</head><body>${content}</body></html>`;
+
+        if (w) {
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+            // Wait for styles to load
+            w.onload = function() {
+                try { w.focus(); w.print(); w.close(); } catch (e) { console.warn('print window error', e); }
+            };
+            // In case onload doesn't fire quickly, set a timeout
+            setTimeout(function() {
+                try { w.focus(); w.print(); w.close(); } catch (e) { /* ignore */ }
+            }, 800);
+        } else {
+            // Fallback: create hidden iframe, write content and print from it
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
+            const idoc = iframe.contentWindow || iframe.contentDocument;
+            const d = idoc.document || idoc;
+            d.open();
+            d.write(html);
+            d.close();
+            // Wait briefly for the iframe to render then print
+            setTimeout(function() {
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch (e) {
+                    console.error('Iframe print failed', e);
+                    alert('Unable to open print window. Please allow popups or try printing from your browser menu.');
+                }
+                // Remove iframe after printing
+                setTimeout(() => document.body.removeChild(iframe), 1000);
+            }, 600);
+        }
+    } catch (err) {
+        console.error('printCreditReport error', err);
+        alert('An error occurred while trying to print the report. Check console for details.');
+    }
+}
+</script>
+{% endblock %}

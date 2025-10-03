@@ -19,9 +19,9 @@ urlpatterns = [
     path('', views.dashboard, name='home'),
     
     # POS
-    path('pos/', views.pos, name='pos'),
-    path('pos/process-sale/', views.process_sale, name='process_sale'),
-    path('pos/receipt/<int:sale_id>/', views.get_receipt, name='get_receipt'),
+    path('sale/', views.pos, name='pos'),
+    path('process-sale/', views.process_sale, name='process_sale'),
+    path('receipt/<int:sale_id>/', views.get_receipt, name='get_receipt'),
     
     # Products
     path('products/', views.product_list, name='product_list'),
@@ -84,6 +84,22 @@ urlpatterns = [
     path('reports/', views.reports, name='reports'),
     path('reports/export-sales/', views.export_sales_report, name='export_sales_report'),
     path('reports/export-inventory/', views.export_inventory_report, name='export_inventory_report'),
+    path('reports/vat/', views.vat_report, name='vat_report'),
+    path('reports/vat/export/', views.export_vat_report, name='export_vat_report'),
+    
+    # VAT Management
+    path('vat-management/', views.vat_management, name='vat_management'),
+    path('vat-management/add-category/', views.add_vat_category, name='add_vat_category'),
+    path('vat-management/edit-category/<int:pk>/', views.edit_vat_category, name='edit_vat_category'),
+    path('vat-management/delete-category/<int:pk>/', views.delete_vat_category, name='delete_vat_category'),
+    
+    # Credit Management
+    path('credit-management/', views.credit_management, name='credit_management'),
+    path('receive-payment/', views.receive_payment, name='receive_payment'),
+    
+    # Credit Reports
+    path('reports/credit/', views.credit_report_overall, name='credit_report_overall'),
+    path('reports/credit/customer/<int:customer_id>/', views.credit_report_customer, name='credit_report_customer'),
     
     # Settings
     path('settings/', views.settings_view, name='settings'),
