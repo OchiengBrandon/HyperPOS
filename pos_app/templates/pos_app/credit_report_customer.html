@@ -81,6 +81,9 @@
         padding: 1.5rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         margin-bottom: 2rem;
+        overflow: hidden;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     .progress-custom {
@@ -144,6 +147,91 @@
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
         color: white;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding: 1rem;
+        }
+        
+        .report-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .report-header .d-flex {
+            flex-direction: column !important;
+            align-items: center !important;
+        }
+        
+        .report-header .text-end {
+            text-align: center !important;
+            margin-top: 1rem;
+        }
+        
+        .customer-card,
+        .chart-container {
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+        
+        .row .col-md-6,
+        .row .col-md-8,
+        .row .col-md-4 {
+            margin-bottom: 1rem;
+        }
+        
+        .timeline-item {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .timeline-date {
+            margin-bottom: 0.5rem;
+        }
+        
+        .chart-container h6 {
+            font-size: 1rem;
+        }
+        
+        .progress-custom {
+            height: 8px;
+        }
+        
+        /* Fix for expanding elements */
+        * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .container-fluid,
+        .row,
+        .col-md-6,
+        .col-md-8,
+        .col-md-4 {
+            overflow-x: hidden;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .report-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .customer-card,
+        .chart-container {
+            padding: 0.8rem;
+        }
+        
+        .timeline-item {
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+        }
     }
     
     @media print {

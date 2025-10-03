@@ -164,6 +164,15 @@
         padding: 2rem;
         box-shadow: var(--card-shadow);
         margin-bottom: 2rem;
+        max-width: 100%;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    
+    .chart-container canvas {
+        max-width: 100% !important;
+        height: 400px !important;
+        box-sizing: border-box;
     }
 
     .chart-header {
@@ -310,6 +319,17 @@
         .chart-container,
         .filter-card {
             padding: 1rem;
+            overflow-x: hidden;
+        }
+        
+        .chart-container canvas {
+            max-width: 100% !important;
+            height: 300px !important;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
     }
 </style>

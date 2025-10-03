@@ -105,6 +105,108 @@
         box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
         color: white;
     }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding: 1rem;
+        }
+        
+        .report-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .report-header .d-flex {
+            flex-direction: column !important;
+            align-items: center !important;
+        }
+        
+        .report-header .text-end {
+            text-align: center !important;
+            margin-top: 1rem;
+        }
+        
+        .stats-card {
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+        
+        .stats-value {
+            font-size: 1.8rem;
+        }
+        
+        .customer-card {
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+        
+        .customer-header {
+            padding: 1rem;
+        }
+        
+        .customer-body {
+            padding: 1rem;
+        }
+        
+        /* Fix for expanding elements and tables */
+        * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .container-fluid,
+        .row,
+        .col-md-4,
+        .col-md-6,
+        .col-md-8 {
+            overflow-x: hidden;
+        }
+        
+        /* Responsive tables */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .table-sm {
+            font-size: 0.8rem;
+        }
+        
+        .table-sm th,
+        .table-sm td {
+            padding: 0.3rem;
+            white-space: nowrap;
+        }
+        
+        /* Stack columns on mobile */
+        .customer-card .row .col-md-6 {
+            margin-bottom: 1rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .report-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .stats-card {
+            padding: 0.8rem;
+        }
+        
+        .stats-value {
+            font-size: 1.5rem;
+        }
+        
+        .customer-card {
+            padding: 0.8rem;
+        }
+        
+        .btn {
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+        }
+    }
     
     @media print {
         .no-print { display: none !important; }

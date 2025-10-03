@@ -333,12 +333,26 @@ def pos(request):
     products = Product.objects.filter(business=business, is_active=True)
     customers = Customer.objects.filter(business=business)
     
+    # Get most purchased products (based on total quantity sold)
+    most_purchased = Product.objects.filter(
+        business=business, 
+        is_active=True,
+        sale_items__isnull=False
+    ).annotate(
+        total_sold=Sum('sale_items__quantity')
+    ).order_by('-total_sold')[:20]  # Top 20 most purchased
+    
+    # If no sales history, show products with highest stock
+    if not most_purchased:
+        most_purchased = products.order_by('-stock_quantity')[:20]
+    
     context = {
         'business': business,
         'role': role,
         'categories': categories,
         'products': products,
         'customers': customers,
+        'most_purchased': most_purchased,
     }
     
     return render(request, 'pos_app/pos.html', context)
@@ -509,6 +523,71 @@ def process_sale(request):
     
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def api_products(request):
+    """API endpoint to get all products for POS search functionality"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return JsonResponse({'error': 'No business found'}, status=404)
+    
+    products = Product.objects.filter(business=business, is_active=True)
+    
+    products_data = []
+    for product in products:
+        products_data.append({
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku or '',
+            'barcode': product.barcode or '',
+            'description': product.description or '',
+            'category_name': product.category.name if product.category else 'Uncategorized',
+            'vat_rate': product.vat_category.rate if product.vat_category else 0,
+            'price': float(product.selling_price),
+            'stock_quantity': product.stock_quantity,
+            'is_active': product.is_active,
+            'reorder_level': business.settings.low_stock_threshold if hasattr(business, 'settings') else 10,
+        })
+    
+    return JsonResponse(products_data, safe=False)
+
+@login_required
+def api_customer(request, customer_id):
+    """API endpoint to get customer details for credit limit checking"""
+    business = get_business_for_user(request.user)
+    if not business:
+        return JsonResponse({'error': 'No business found'}, status=404)
+    
+    try:
+        customer = Customer.objects.get(id=customer_id, business=business)
+        # Get recent sales for activity
+        recent_sales = Sale.objects.filter(
+            customer=customer, 
+            business=business
+        ).order_by('-created_at')[:3]
+        
+        recent_activity = []
+        for sale in recent_sales:
+            recent_activity.append({
+                'date': sale.created_at.strftime('%b %d'),
+                'amount': float(sale.total_amount),
+                'invoice': sale.invoice_number
+            })
+        
+        customer_data = {
+            'id': customer.id,
+            'full_name': customer.full_name,
+            'phone': customer.phone or '',
+            'email': customer.email or '',
+            'current_debt': float(customer.current_debt),
+            'credit_limit': float(customer.credit_limit),
+            'available_credit': float(customer.credit_limit - customer.current_debt),
+            'debt_percentage': float(customer.debt_percentage),
+            'recent_activity': recent_activity,
+        }
+        return JsonResponse(customer_data)
+    except Customer.DoesNotExist:
+        return JsonResponse({'error': 'Customer not found'}, status=404)
 
 @login_required
 def get_receipt(request, sale_id):
@@ -3574,34 +3653,65 @@ def generate_customer_credit_pdf(request, customer, context):
     elements.append(customer_table)
     elements.append(Spacer(1, 20))
     
-    # Outstanding Sales
+    # Outstanding Sales with Items
     if context['outstanding_sales']:
         elements.append(Paragraph("Outstanding Invoices", heading_style))
         
-        sales_data = [['Invoice', 'Date', 'Total Amount', 'Paid Amount', 'Remaining']]
         for sale_data in context['outstanding_sales']:
-            sales_data.append([
-                sale_data['sale'].invoice_number,
-                sale_data['sale'].created_at.strftime('%m/%d/%Y'),
-                f"{business.currency_symbol}{sale_data['sale'].total_amount:,.2f}",
-                f"{business.currency_symbol}{sale_data['paid_amount']:,.2f}",
-                f"{business.currency_symbol}{sale_data['remaining']:,.2f}"
-            ])
+            sale = sale_data['sale']
+            
+            # Invoice header
+            invoice_header = Paragraph(f"<b>Invoice #{sale.invoice_number}</b> - {sale.created_at.strftime('%B %d, %Y')}", 
+                                     ParagraphStyle('InvoiceHeader', parent=normal_style, fontSize=12, spaceAfter=6))
+            elements.append(invoice_header)
+            
+            # Invoice summary
+            summary_data = [
+                ['Total Amount:', f"{business.currency_symbol}{sale.total_amount:,.2f}"],
+                ['Paid Amount:', f"{business.currency_symbol}{sale_data['paid_amount']:,.2f}"],
+                ['Remaining:', f"{business.currency_symbol}{sale_data['remaining']:,.2f}"]
+            ]
+            
+            summary_table = Table(summary_data, colWidths=[1.5*inch, 1.5*inch])
+            summary_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(summary_table)
+            elements.append(Spacer(1, 6))
+            
+            # Items in this sale
+            sale_items = sale.items.all()
+            if sale_items:
+                items_data = [['Item', 'Qty', 'Unit Price', 'Total']]
+                for item in sale_items:
+                    items_data.append([
+                        item.product.name[:30] + ('...' if len(item.product.name) > 30 else ''),
+                        str(item.quantity),
+                        f"{business.currency_symbol}{item.unit_price:,.2f}",
+                        f"{business.currency_symbol}{(item.quantity * item.unit_price):,.2f}"
+                    ])
+                
+                items_table = Table(items_data, colWidths=[3*inch, 0.7*inch, 1*inch, 1*inch])
+                items_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ]))
+                elements.append(items_table)
+            
+            elements.append(Spacer(1, 15))
         
-        sales_table = Table(sales_data, colWidths=[1.2*inch, 1*inch, 1.2*inch, 1.2*inch, 1.2*inch])
-        sales_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ]))
-        elements.append(sales_table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 10))
     
     # Payment History (last 10 payments)
     if context['recent_payments']:

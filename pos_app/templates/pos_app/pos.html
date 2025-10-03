@@ -4,320 +4,272 @@
 {% block title %}Point of Sale{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pos.css' %}">
+<link rel="stylesheet" href="{% static 'css/pos.css' %}">
 {% endblock %}
 
 {% block content %}
 <!-- Hidden data attributes for JavaScript -->
 <div id="pos-data" 
-     data-tax-rate="{{ business.settings.tax_rate }}" 
+     data-tax-rate="{{ business.tax_rate }}" 
      data-currency-symbol="{{ business.currency_symbol }}"
+     data-vat-inclusive="{{ business.settings.vat_inclusive_pricing|yesno:'true,false' }}"
      data-process-sale-url="{% url 'pos:process_sale' %}"></div>
 
 <div class="pos-container">
-    <!-- Products Section -->
+    <!-- Left Side - Products -->
     <div class="products-section">
-        <!-- Products Header -->
-        <div class="products-header">
-            <div class="row align-items-center">
-                <div class="col-lg-4 col-md-12 col-sm-12 mb-2 mb-lg-0">
-                    <h4 class="mb-0">Point of Sale</h4>
-                </div>
-                <div class="col-lg-8 col-md-12 col-sm-12">
-                    <div class="input-group">
-                        <input type="text" id="product-search" class="form-control" placeholder="Search products by name, SKU or barcode...">
-                        <button class="btn btn-outline-secondary" type="button" id="barcode-scan" title="Scan Barcode">
-                            <i class="fas fa-barcode"></i>
-                        </button>
+        <!-- Header -->
+        <div class="pos-header">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0 text-white">
+                    <i class="fas fa-cash-register me-2"></i><span class="d-none d-sm-inline">Point of Sale</span><span class="d-sm-none">POS</span>
+                </h4>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-light btn-sm d-md-none" id="mobile-cart-toggle" 
+                            title="Toggle cart">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="badge bg-warning text-dark ms-1" id="mobile-cart-count">0</span>
+                    </button>
+                    <div class="badge bg-light text-dark px-2 py-1 d-none d-sm-block">
+                        <i class="fas fa-user me-1"></i><span class="d-none d-lg-inline">{{ request.user.get_full_name|default:request.user.username }}</span><span class="d-lg-none">{{ request.user.username }}</span>
                     </div>
                 </div>
             </div>
+            <div class="search-container mb-3">
+                <div class="input-group input-group-lg shadow-sm">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="fas fa-search text-primary"></i>
+                    </span>
+                    <input type="text" id="product-search" class="form-control border-start-0 border-end-0" 
+                           placeholder="Search products or scan barcode..." 
+                           title="Search products or scan barcode"
+                           autocomplete="off">
+                    <button class="btn btn-outline-primary border-start-0" type="button" id="barcode-scan" 
+                            title="Barcode scanner mode">
+                        <i class="fas fa-barcode"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary border-start-0" type="button" id="clear-search" 
+                            title="Clear search">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        
-        <!-- Categories -->
-        <div class="categories-scrollable">
-            <div class="category-pill active" data-category-id="all">All Products</div>
-            {% for category in categories %}
-                <div class="category-pill" data-category-id="{{ category.id }}">{{ category.name }}</div>
-            {% endfor %}
-        </div>
-        
-        <!-- Products Grid -->
-        <div class="products-grid-container">
-            <div class="products-grid">
-                {% for product in products %}
-                    <div class="product-card" 
-                         data-product-id="{{ product.id }}" 
-                         data-product-name="{{ product.name }}" 
-                         data-product-price="{{ product.selling_price }}"
-                         data-product-stock="{{ product.stock_quantity }}"
-                         data-category-id="{{ product.category.id }}">
-                        {% if product.image %}
-                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
-                        {% else %}
-                            <div class="product-icon">
-                                <i class="bi bi-box-seam"></i>
-                            </div>
-                        {% endif %}
-                        <div class="product-info">
-                            <div class="product-name">{{ product.name }}</div>
-                            {% if product.vat_category %}
-                                <div class="vat-badge">{{ product.vat_category.code }}</div>
-                            {% endif %}
-                            <div class="product-price">{{ business.currency_symbol }} {{ product.selling_price|floatformat:2 }}</div>
-                            <div class="product-stock {% if product.stock_quantity <= 0 %}out-of-stock{% endif %}">
-                                {% if product.stock_quantity <= 0 %}
-                                    Out of stock
-                                {% else %}
-                                    {{ product.stock_quantity }} {{ product.unit|default:"pcs" }}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
+
+        <!-- Products Table -->
+        <div class="products-table-container">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="products-table">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th scope="col" class="px-3 py-3">
+                                <i class="fas fa-box me-1"></i>Product
+                            </th>
+                            <th scope="col" class="px-3 py-3 d-none d-md-table-cell">
+                                <i class="fas fa-tags me-1"></i>Category
+                            </th>
+                            <th scope="col" class="px-3 py-3">
+                                <i class="fas fa-dollar-sign me-1"></i>Price (Incl. VAT)
+                            </th>
+                            <th scope="col" class="px-3 py-3">
+                                <i class="fas fa-warehouse me-1"></i>Stock
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-tbody">
+                        {% for product in most_purchased %}
+                            <tr class="product-row clickable-row" 
+                                data-product-id="{{ product.id }}"
+                                data-product-name="{{ product.name }}"
+                                data-product-price="{{ product.selling_price }}"
+                                data-product-barcode="{{ product.barcode|default:'' }}"
+                                data-stock="{{ product.stock_quantity }}"
+                                data-vat-rate="{% if product.vat_category %}{{ product.vat_category.rate }}{% else %}0{% endif %}"
+                                onclick="addToCart('{{ product.id }}')"
+                                title="Click to add {{ product.name }} to cart">
+                                <td class="product-cell">
+                                    <div class="product-info">
+                                        <strong class="product-name text-primary">{{ product.name }}</strong>
+                                        {% if product.description %}
+                                        <br><small class="text-muted">{{ product.description|truncatechars:60 }}</small>
+                                        {% endif %}
+                                        <div class="d-md-none mt-1">
+                                            <span class="badge bg-secondary">{{ product.category.name }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    <span class="badge bg-secondary">{{ product.category.name }}</span>
+                                </td>
+                                <td><strong class="text-success price-display fs-5">{{ business.currency_symbol }}{{ product.selling_price|floatformat:2 }}</strong></td>
+                                <td>
+                                    <span class="badge stock-badge fs-6 {% if product.stock_quantity <= business.settings.low_stock_threshold %}bg-danger{% elif product.stock_quantity <= 10 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                        {{ product.stock_quantity }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr id="no-products">
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-search fa-2x mb-2"></i><br>
+                                    No products found. Use search to find products.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-    
-    <!-- Cart Section -->
-    <div class="cart-section">
+
+    <!-- Right Side - Cart -->
+    <div class="cart-section" id="cart-section">
         <!-- Cart Header -->
         <div class="cart-header">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">Current Sale</h5>
-                <button id="clear-cart" class="btn btn-sm btn-outline-danger">
-                    <i class="fas fa-trash-alt me-1"></i> Clear
-                </button>
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-shopping-cart me-2"></i>Cart
+                </h5>
+                <div>
+                    <span class="badge bg-primary me-2" id="cart-count">0 items</span>
+                    <button class="btn btn-sm btn-outline-info me-1" id="held-sales-btn" 
+                            title="View held sales">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="clear-cart-btn" 
+                            title="Clear cart" disabled>
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="cart-customer-select" class="form-label">Select Customer</label>
-                <select id="cart-customer-select" class="form-select">
-                    <option value="">Walk-in Customer</option>
+        </div>
+
+        <!-- Cart Items -->
+        <div class="cart-items flex-grow-1" id="cart-items">
+            <div class="empty-cart text-center text-muted py-4">
+                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                <p class="mb-0">Cart is empty<br><small>Add products to start a sale</small></p>
+            </div>
+        </div>
+
+        <!-- Cart Footer - Compact Layout -->
+        <div class="cart-footer">
+            <!-- Customer Selection - Compact -->
+            <div class="customer-selection mb-2">
+                <select class="form-select form-select-sm" id="customer-select" title="Select customer">
+                    <option value="">👤 Walk-in Customer</option>
                     {% for customer in customers %}
                         <option value="{{ customer.id }}" 
-                                data-credit-limit="{{ customer.credit_limit }}" 
+                                data-credit-limit="{{ customer.credit_limit }}"
                                 data-current-debt="{{ customer.current_debt }}">
                             {{ customer.full_name }}
-                            {% if customer.current_debt > 0 %}
-                                (Debt: {{ business.currency_symbol }}{{ customer.current_debt }})
-                            {% endif %}
                         </option>
                     {% endfor %}
                 </select>
             </div>
-        </div>
-        
-        <!-- Cart Items -->
-        <div class="cart-items" id="cart-items">
-            <!-- Cart items will be added here dynamically -->
-            <div class="text-center p-4 text-muted">
-                <i class="fas fa-shopping-cart mb-3"></i>
-                <p>No items in cart</p>
-                <p class="small">Select products from the left panel</p>
-                <div class="small text-info mt-2">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Supports decimal quantities (0.25, 0.5, 1.5, etc.)
-                </div>
-            </div>
-        </div>
-        
-        <!-- Cart Totals -->
-        <div class="cart-totals">
-            <div class="cart-total-row">
-                <span>Subtotal:</span>
-                <span id="subtotal">{{ business.currency_symbol }} 0.00</span>
-            </div>
-            
-            <div class="cart-total-row">
-                <span>Tax ({{ business.settings.tax_rate }}%):</span>
-                <span id="tax">{{ business.currency_symbol }} 0.00</span>
-            </div>
-            
-            <div class="cart-total-row">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text">Discount</span>
-                    <input type="number" id="discount-input" class="form-control" value="0" min="0" step="0.01" title="Enter discount amount" placeholder="Discount">
-                    <span class="input-group-text">{{ business.currency_symbol }}</span>
-                </div>
-            </div>
-            
-            <div class="cart-total-row final">
-                <span>Total:</span>
-                <span id="total">{{ business.currency_symbol }} 0.00</span>
-            </div>
-        </div>
-        
-        <!-- Payment Actions -->
-        <div class="payment-actions">
-            <button id="checkout-btn" class="btn btn-primary btn-lg w-100" disabled>
-                <i class="fas fa-credit-card me-2"></i> Checkout
-            </button>
-        </div>
-    </div>
-</div>
 
-<!-- Payment Modal -->
-<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Complete Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Customer Selection -->
-                <div class="mb-4">
-                    <h6>Customer</h6>
-                    <div class="row">
-                        <div class="col-8 col-sm-8">
-                            <select class="form-select" id="modal-customer-select">
-                                <option value="">Walk-in Customer</option>
-                                {% for customer in customers %}
-                                <option value="{{ customer.id }}" 
-                                        data-credit-limit="{{ customer.credit_limit }}" 
-                                        data-current-debt="{{ customer.current_debt }}">
-                                    {{ customer.full_name }}
-                                    {% if customer.current_debt > 0 %}
-                                        (Debt: {{ business.currency_symbol }}{{ customer.current_debt }})
-                                    {% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-4 col-sm-4">
-                            <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="window.open('{% url 'pos:customer_create' %}', '_blank')">
-                                <i class="fas fa-plus d-none d-sm-inline"></i> 
-                                <span class="d-none d-sm-inline">New</span>
-                                <span class="d-inline d-sm-none">+</span>
+            <!-- Customer Balance Info - Enhanced -->
+            <div class="customer-balance-info d-none mb-2" id="customer-balance-info">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-2">
+                        <!-- Customer Name -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 text-primary" id="customer-name">Customer Info</h6>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#customer-details" aria-expanded="false" 
+                                    title="Show/Hide Customer Details" aria-label="Toggle customer details">
+                                <i class="fas fa-eye"></i>
                             </button>
                         </div>
-                    </div>
-                    
-                    <!-- Customer Debt Information -->
-                    <div id="customer-debt-info" class="mt-2 d-none">
-                        <div class="alert alert-warning">
-                            <strong>Customer Debt Information:</strong><br>
-                            Current Debt: <span id="current-debt-amount">{{ business.currency_symbol }}0.00</span><br>
-                            Credit Limit: <span id="credit-limit-amount">{{ business.currency_symbol }}0.00</span><br>
-                            Available Credit: <span id="available-credit-amount">{{ business.currency_symbol }}0.00</span>
+                        
+                        <!-- Quick Balance Overview -->
+                        <div class="row text-xs mb-2">
+                            <div class="col-4">
+                                <span class="text-muted">Current Debt:</span><br>
+                                <span class="fw-bold text-danger" id="current-debt">$0.00</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-muted">Credit Limit:</span><br>
+                                <span class="fw-bold" id="credit-limit">$0.00</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-muted">Available:</span><br>
+                                <span class="fw-bold text-success" id="available-credit">$0.00</span>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h6>Payment Method</h6>
-                    <div class="payment-methods">
-                        <div class="payment-method-btn" data-method="cash">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <div>Cash</div>
+                        
+                        <!-- Credit Status Bar -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between text-xs">
+                                <span>Credit Usage</span>
+                                <span id="credit-usage-percent">0%</span>
+                            </div>
+                            <div class="progress credit-progress">
+                                <div class="progress-bar" id="credit-usage-bar" role="progressbar" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" 
+                                     aria-label="Credit usage percentage" title="Credit usage indicator"></div>
+                            </div>
                         </div>
-                        <div class="payment-method-btn" data-method="card">
-                            <i class="fas fa-credit-card"></i>
-                            <div>Card</div>
+                        
+                        <!-- Expandable Details -->
+                        <div class="collapse" id="customer-details">
+                            <div class="border-top pt-2 mt-2">
+                                <div class="row text-xs">
+                                    <div class="col-6">
+                                        <strong>Phone:</strong><br>
+                                        <span id="customer-phone" class="text-muted">-</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Email:</strong><br>
+                                        <span id="customer-email" class="text-muted">-</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <strong>Recent Activity:</strong>
+                                    <div id="recent-activity" class="text-xs text-muted">
+                                        Loading...
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="payment-method-btn" data-method="mobile_payment">
-                            <i class="fas fa-mobile-alt"></i>
-                            <div>Mobile</div>
-                        </div>
-                        <div class="payment-method-btn" data-method="credit">
-                            <i class="fas fa-credit-card"></i>
-                            <div>Credit</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="payment-details-cash" class="payment-details">
-                    <div class="mb-3">
-                        <label for="cash-received" class="form-label">Cash Received</label>
-                        <div class="input-group">
-                            <span class="input-group-text">{{ business.currency_symbol }}</span>
-                            <input type="number" class="form-control" id="cash-received" step="0.01" min="0">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="cash-change" class="form-label">Change</label>
-                        <div class="input-group">
-                            <span class="input-group-text">{{ business.currency_symbol }}</span>
-                            <input type="text" class="form-control" id="cash-change" readonly>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="payment-details-card" class="payment-details d-none">
-                    <div class="mb-3">
-                        <label for="card-reference" class="form-label">Reference / Receipt #</label>
-                        <input type="text" class="form-control" id="card-reference">
-                    </div>
-                </div>
-                
-                <div id="payment-details-mobile" class="payment-details d-none">
-                    <div class="mb-3">
-                        <label for="mobile-reference" class="form-label">Transaction ID</label>
-                        <input type="text" class="form-control" id="mobile-reference">
-                    </div>
-                </div>
-                
-                <div id="payment-details-credit" class="payment-details d-none">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        This sale will be added to the customer's account as debt.
-                    </div>
-                    <div class="mb-3">
-                        <label for="credit-due-date" class="form-label">Due Date</label>
-                        <input type="date" class="form-control" id="credit-due-date" 
-                               value="{{ default_due_date|date:'Y-m-d' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="credit-notes" class="form-label">Credit Notes</label>
-                        <textarea class="form-control" id="credit-notes" rows="2" 
-                                  placeholder="Optional notes for this credit transaction"></textarea>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="payment-notes" class="form-label">Notes</label>
-                    <textarea class="form-control" id="payment-notes" rows="2"></textarea>
-                </div>
-                
-                <div class="alert alert-info d-flex align-items-center" role="alert">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <div>
-                        Total Amount: <strong id="modal-total">{{ business.currency_symbol }} 0.00</strong>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="complete-sale-btn" class="btn btn-primary">
-                    <i class="fas fa-check-circle me-1"></i> Complete Sale
-                </button>
+
+            <!-- Cart Summary - Compact -->
+            <div class="cart-summary d-none mb-2" id="cart-summary">
+                <div class="bg-light rounded p-2">
+                    <div class="row mb-1">
+                        <div class="col-6 small">Subtotal:</div>
+                        <div class="col-6 text-end small fw-bold" id="subtotal">{{ business.currency_symbol }}0.00</div>
+                    </div>
+                    <div class="row mb-1">
+                        <div class="col-6 small">Tax:</div>
+                        <div class="col-6 text-end small" id="tax-amount">{{ business.currency_symbol }}0.00</div>
+                    </div>
+                    <hr class="my-1">
+                    <div class="row">
+                        <div class="col-6"><strong>Total:</strong></div>
+                        <div class="col-6 text-end"><strong class="text-success" id="total-amount">{{ business.currency_symbol }}0.00</strong></div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Receipt Modal -->
-<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Sale Completed</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <div class="mb-4">
-                    <i class="fas fa-check-circle text-success receipt-success-icon"></i>
-                    <h4 class="mt-3">Sale Completed Successfully!</h4>
-                    <p>Invoice #: <span id="invoice-number"></span></p>
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-success w-100 mb-2" id="checkout-btn" disabled>
+                <i class="fas fa-credit-card me-2"></i>Checkout
+            </button>
+            <div class="row">
+                <div class="col-6">
+                    <button class="btn btn-warning w-100" id="hold-btn" disabled>
+                        <i class="fas fa-pause me-1"></i>Hold
+                    </button>
                 </div>
-                
-                <div class="d-grid gap-2">
-                    <a id="view-receipt-btn" href="#" class="btn btn-primary" target="_blank">
-                        <i class="fas fa-receipt me-1"></i> View Receipt
-                    </a>
-                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">
-                        <i class="fas fa-plus-circle me-1"></i> New Sale
+                <div class="col-6">
+                    <button class="btn btn-danger w-100" id="clear-btn" disabled>
+                        <i class="fas fa-trash me-1"></i>Clear
                     </button>
                 </div>
             </div>
@@ -325,48 +277,1164 @@
     </div>
 </div>
 
-<!-- Decimal Quantity Instructions Modal -->
-<div class="modal fade" id="quantityHelpModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm">
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h6 class="modal-title">Quantity Controls</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">Process Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" 
+                        aria-label="Close" title="Close modal"></button>
             </div>
             <div class="modal-body">
-                <div class="small">
-                    <p><strong>Decimal Quantities Supported:</strong></p>
-                    <ul class="mb-2">
-                        <li><kbd>-¼</kbd> Decrease by 0.25</li>
-                        <li><kbd>-½</kbd> Decrease by 0.5</li>
-                        <li><kbd>+½</kbd> Increase by 0.5</li>
-                        <li><kbd>+1</kbd> Increase by 1</li>
-                    </ul>
-                    <p><strong>Manual Entry:</strong></p>
-                    <p>Click the quantity input field to type exact amounts (e.g., 2.75, 1.33, etc.)</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Total Amount:</label>
+                    <h3 class="text-success" id="modal-total">{{ business.currency_symbol }}0.00</h3>
                 </div>
+                
+                <div class="mb-3">
+                    <label for="amount-received" class="form-label">Amount Received</label>
+                    <div class="input-group">
+                        <span class="input-group-text">{{ business.currency_symbol }}</span>
+                        <input type="number" class="form-control" id="amount-received" 
+                               step="0.01" min="0" placeholder="0.00">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="payment-method" class="form-label">Payment Method</label>
+                    <select class="form-select" id="payment-method">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="mobile_payment">Mobile Payment</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="credit">Credit Sale</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3 d-none" id="change-section">
+                    <label class="form-label">Change:</label>
+                    <h4 class="text-info" id="change-amount">{{ business.currency_symbol }}0.00</h4>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="complete-sale-btn">
+                    <i class="fas fa-check me-1"></i>Complete Sale
+                </button>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{% static 'js/pos.js' %}"></script>
-
-<!-- Initialize data attributes for JavaScript -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Set up data attributes for the POS system
-    const posData = document.getElementById('pos-data');
-    if (posData) {
-        // Make data available globally for the POS script
-        window.POSConfig = {
-            taxRate: posData.dataset.taxRate,
-            currencySymbol: posData.dataset.currencySymbol,
-            processSaleUrl: posData.dataset.processSaleUrl
+// POS System JavaScript
+/**
+ * Professional Point of Sale System
+ * Handles cart operations, payments, hold functionality, and customer management
+ */
+class AdvancedPOS {
+    constructor() {
+        // Core system properties
+        this.cart = [];
+        this.heldSales = this.loadHeldSales();
+        this.customers = new Map();
+        
+        // Configuration from DOM data
+        this.config = this.loadConfiguration();
+        
+        // State management
+        this.state = {
+            isLoading: false,
+            currentCustomer: null,
+            mobileCartVisible: false,
+            searchActive: false
+        };
+        
+        // Initialize system
+        this.initialize();
+    }
+    
+    /**
+     * Load system configuration from DOM
+     */
+    loadConfiguration() {
+        const dataElement = document.getElementById('pos-data');
+        return {
+            taxRate: parseFloat(dataElement.dataset.taxRate) || 0,
+            currencySymbol: dataElement.dataset.currencySymbol || '$',
+            vatInclusive: dataElement.dataset.vatInclusive === 'true',
+            processSaleUrl: dataElement.dataset.processSaleUrl,
+            lowStockThreshold: 10,
+            maxCartItems: 100,
+            autoSaveInterval: 30000 // 30 seconds
         };
     }
+    
+    /**
+     * Get currency symbol from config
+     */
+    get currencySymbol() {
+        return this.config.currencySymbol;
+    }
+    
+    /**
+     * Get tax rate from config
+     */
+    get taxRate() {
+        return this.config.taxRate;
+    }
+    
+    /**
+     * Get process sale URL from config
+     */
+    get processSaleUrl() {
+        return this.config.processSaleUrl;
+    }
+    
+    /**
+     * Initialize the POS system
+     */
+    async initialize() {
+        try {
+            this.showLoading(true);
+            
+            // Load system data
+            await this.loadAllProducts();
+            this.loadCustomers();
+            
+            // Setup event listeners
+            this.initializeEventListeners();
+            this.initializeKeyboardShortcuts();
+            
+            // Update UI
+            this.updateHeldSalesCount();
+            this.updateMobileCartCount();
+            
+            // Start auto-save timer
+            this.startAutoSave();
+            
+            this.showLoading(false);
+            this.logSystemEvent('POS System initialized successfully');
+        } catch (error) {
+            this.handleError('System initialization failed', error);
+        }
+    }
+    
+    /**
+     * Show/hide loading state
+     */
+    showLoading(show) {
+        this.state.isLoading = show;
+        // Could add loading spinner here
+    }
+    
+    /**
+     * Load held sales from localStorage
+     */
+    loadHeldSales() {
+        try {
+            return JSON.parse(localStorage.getItem('heldSales') || '[]');
+        } catch (error) {
+            this.logSystemEvent('Error loading held sales', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Load customers for quick access
+     */
+    loadCustomers() {
+        const customerSelect = document.getElementById('customer-select');
+        if (customerSelect) {
+            Array.from(customerSelect.options).forEach(option => {
+                if (option.value) {
+                    this.customers.set(option.value, {
+                        id: option.value,
+                        name: option.text,
+                        creditLimit: parseFloat(option.dataset.creditLimit || 0),
+                        currentDebt: parseFloat(option.dataset.currentDebt || 0)
+                    });
+                }
+            });
+        }
+    }
+    
+    /**
+     * Log system events for debugging
+     */
+    logSystemEvent(message, data = null) {
+        const timestamp = new Date().toISOString();
+        console.log(`[POS ${timestamp}] ${message}`, data || '');
+    }
+    
+    /**
+     * Handle system errors gracefully
+     */
+    handleError(message, error) {
+        console.error(`[POS Error] ${message}:`, error);
+        this.showAlert(`System Error: ${message}`, 'danger');
+    }
+    
+    /**
+     * Initialize keyboard shortcuts for power users
+     */
+    initializeKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ignore shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                return;
+            }
+            
+            switch(e.key) {
+                case 'F1': // Help
+                    e.preventDefault();
+                    this.showKeyboardShortcuts();
+                    break;
+                case 'F2': // Hold sale
+                    e.preventDefault();
+                    this.holdSale();
+                    break;
+                case 'F3': // View held sales
+                    e.preventDefault();
+                    this.showHeldSales();
+                    break;
+                case 'F4': // Clear cart
+                    e.preventDefault();
+                    if (confirm('Clear cart?')) this.clearCart();
+                    break;
+                case 'F5': // Refresh/reload products
+                    e.preventDefault();
+                    this.loadAllProducts();
+                    break;
+                case '/': // Focus search
+                    e.preventDefault();
+                    document.getElementById('product-search').focus();
+                    break;
+                case 'Escape': // Close modals or clear search
+                    if (this.state.mobileCartVisible) {
+                        this.toggleMobileCart();
+                    } else {
+                        this.clearSearch();
+                    }
+                    break;
+            }
+        });
+    }
+    
+    /**
+     * Start auto-save functionality
+     */
+    startAutoSave() {
+        setInterval(() => {
+            if (this.cart.length > 0) {
+                this.autoSaveCart();
+            }
+        }, this.config.autoSaveInterval);
+    }
+    
+    /**
+     * Auto-save cart state
+     */
+    autoSaveCart() {
+        try {
+            localStorage.setItem('autoSaveCart', JSON.stringify({
+                cart: this.cart,
+                timestamp: new Date().toISOString(),
+                customer: document.getElementById('customer-select').value
+            }));
+            this.logSystemEvent('Cart auto-saved');
+        } catch (error) {
+            this.logSystemEvent('Auto-save failed', error);
+        }
+    }
+    
+    /**
+     * Show keyboard shortcuts help
+     */
+    showKeyboardShortcuts() {
+        const shortcuts = [
+            'F1 - Show this help',
+            'F2 - Hold current sale',
+            'F3 - View held sales', 
+            'F4 - Clear cart',
+            'F5 - Refresh products',
+            '/ - Focus search',
+            'Escape - Close/Cancel'
+        ];
+        
+        alert('Keyboard Shortcuts:\n\n' + shortcuts.join('\n'));
+    }
+
+    initializeEventListeners() {
+        // Search functionality with barcode scanning support
+        const searchInput = document.getElementById('product-search');
+        searchInput.addEventListener('input', (e) => {
+            this.searchProducts(e.target.value);
+            this.toggleClearButton(e.target.value);
+        });
+        
+        // Enhanced barcode scanning
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleBarcodeOrSearch(e.target.value);
+            }
+        });
+        
+        // Barcode scan button
+        document.getElementById('barcode-scan').addEventListener('click', () => {
+            this.focusSearch();
+        });
+        
+        // Clear search button
+        document.getElementById('clear-search').addEventListener('click', () => {
+            this.clearSearch();
+        });
+        
+        // Customer selection
+        document.getElementById('customer-select').addEventListener('change', (e) => {
+            this.handleCustomerSelection(e.target.value);
+        });
+        
+        // Cart actions
+        document.getElementById('checkout-btn').addEventListener('click', () => {
+            this.showPaymentModal();
+        });
+        
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            this.clearCart();
+        });
+        
+        document.getElementById('hold-btn').addEventListener('click', () => {
+            this.holdSale();
+        });
+        
+        // Payment modal
+        document.getElementById('amount-received').addEventListener('input', () => {
+            this.calculateChange();
+        });
+        
+        document.getElementById('complete-sale-btn').addEventListener('click', () => {
+            this.completeSale();
+        });
+
+        document.getElementById('held-sales-btn').addEventListener('click', () => {
+            this.showHeldSales();
+        });
+
+        // Update held sales count on page load
+        this.updateHeldSalesCount();
+
+        // Mobile cart toggle
+        const mobileToggle = document.getElementById('mobile-cart-toggle');
+        if (mobileToggle) {
+            mobileToggle.addEventListener('click', () => {
+                this.toggleMobileCart();
+            });
+        }
+
+        document.getElementById('clear-cart-btn').addEventListener('click', () => {
+            if (confirm('Clear entire cart?')) {
+                this.clearCart();
+            }
+        });
+    }
+    
+    async loadAllProducts() {
+        try {
+            const response = await fetch('/pos/api/products/');
+            if (response.ok) {
+                this.allProducts = await response.json();
+            }
+        } catch (error) {
+            console.error('Error loading products:', error);
+        }
+    }
+    
+    searchProducts(query) {
+        const searchTerm = query.toLowerCase().trim();
+        const rows = document.querySelectorAll('.product-row');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            if (!searchTerm) {
+                row.style.display = '';
+                visibleCount++;
+                return;
+            }
+            
+            const productName = row.dataset.productName?.toLowerCase() || '';
+            const sku = row.querySelector('.sku-code')?.textContent?.toLowerCase() || '';
+            const barcode = row.dataset.productBarcode?.toLowerCase() || '';
+            const description = row.querySelector('.text-muted')?.textContent?.toLowerCase() || '';
+            
+            const isMatch = productName.includes(searchTerm) || 
+                          sku.includes(searchTerm) || 
+                          barcode.includes(searchTerm) || 
+                          description.includes(searchTerm);
+            
+            if (isMatch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Show/hide no results message
+        this.toggleNoResultsMessage(visibleCount === 0 && searchTerm);
+    }
+    
+    handleBarcodeOrSearch(query) {
+        if (!query.trim()) return;
+        
+        // Check if it's an exact barcode match first
+        const exactMatch = this.allProducts.find(product => 
+            product.barcode && product.barcode === query
+        );
+        
+        if (exactMatch) {
+            this.addToCart(exactMatch.id);
+            this.clearSearch();
+        } else {
+            // Regular search
+            this.searchProducts(query);
+        }
+    }
+    
+    toggleClearButton(query) {
+        const clearBtn = document.getElementById('clear-search');
+        if (query.trim()) {
+            clearBtn.classList.add('show');
+        } else {
+            clearBtn.classList.remove('show');
+        }
+    }
+    
+    clearSearch() {
+        document.getElementById('product-search').value = '';
+        this.searchProducts(''); // Reset to show all products
+        this.toggleClearButton('');
+    }
+    
+    toggleNoResultsMessage(show) {
+        let noResultsRow = document.getElementById('no-search-results');
+        
+        if (show && !noResultsRow) {
+            const tbody = document.getElementById('products-tbody');
+            noResultsRow = document.createElement('tr');
+            noResultsRow.id = 'no-search-results';
+            noResultsRow.innerHTML = `
+                <td colspan="4" class="text-center text-muted py-4">
+                    <i class="fas fa-search fa-2x mb-2"></i><br>
+                    No products found matching your search.
+                </td>
+            `;
+            tbody.appendChild(noResultsRow);
+        } else if (!show && noResultsRow) {
+            noResultsRow.remove();
+        }
+    }
+    
+    showMostPurchased() {
+        // Reset to show initial most purchased products
+        location.reload(); // Simple refresh for now
+    }
+    
+    renderProducts(products) {
+        const tbody = document.getElementById('products-tbody');
+        
+        if (products.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        <i class="fas fa-search fa-2x mb-2"></i><br>
+                        No products found matching your search.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = products.map(product => `
+            <tr class="product-row clickable-row" 
+                data-product-id="${product.id}"
+                data-product-name="${product.name}"
+                data-product-price="${product.price}"
+                data-product-barcode="${product.barcode || ''}"
+                data-stock="${product.stock_quantity}"
+                data-vat-rate="${product.vat_rate || 0}"
+                onclick="addToCart('${product.id}')"
+                title="Click to add ${product.name} to cart">
+                <td class="product-cell">
+                    <div class="product-info">
+                        <strong class="product-name text-primary">${product.name}</strong>
+                        ${product.description ? `<br><small class="text-muted">${product.description.substring(0, 60)}...</small>` : ''}
+                        <div class="d-md-none mt-1">
+                            <span class="badge bg-secondary">${product.category_name}</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="d-none d-md-table-cell">
+                    <span class="badge bg-secondary">${product.category_name}</span>
+                </td>
+                <td><strong class="text-success price-display fs-5">${this.currencySymbol}${parseFloat(product.price).toFixed(2)}</strong></td>
+                <td>
+                    <span class="badge stock-badge fs-6 ${product.stock_quantity <= (product.reorder_level || 10) ? 'bg-danger' : product.stock_quantity <= 10 ? 'bg-warning text-dark' : 'bg-success'}">
+                        ${product.stock_quantity}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    focusSearch() {
+        document.getElementById('product-search').focus();
+    }
+    
+    async handleCustomerSelection(customerId) {
+        const balanceInfo = document.getElementById('customer-balance-info');
+        
+        if (!customerId) {
+            balanceInfo.classList.add('d-none');
+            return;
+        }
+        
+        try {
+            const customer = await this.getCustomerDetails(customerId);
+            if (customer) {
+                this.updateCustomerBalanceDisplay(customer);
+                balanceInfo.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('Error loading customer details:', error);
+            balanceInfo.classList.add('d-none');
+        }
+    }
+    
+    updateCustomerBalanceDisplay(customer) {
+        document.getElementById('current-debt').textContent = 
+            this.currencySymbol + customer.current_debt.toFixed(2);
+        document.getElementById('credit-limit').textContent = 
+            this.currencySymbol + customer.credit_limit.toFixed(2);
+        document.getElementById('available-credit').textContent = 
+            this.currencySymbol + customer.available_credit.toFixed(2);
+            
+        // Color code available credit
+        const availableCreditEl = document.getElementById('available-credit');
+        if (customer.available_credit < 0) {
+            availableCreditEl.className = 'col-5 text-end small fw-bold text-danger';
+        } else if (customer.available_credit < customer.credit_limit * 0.2) {
+            availableCreditEl.className = 'col-5 text-end small fw-bold text-warning';
+        } else {
+            availableCreditEl.className = 'col-5 text-end small fw-bold text-success';
+        }
+    }
+    
+    addToCart(productId) {
+        const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
+        if (!productRow) return;
+        
+        const product = {
+            id: productId,
+            name: productRow.dataset.productName,
+            price: parseFloat(productRow.dataset.productPrice),
+            stock: parseInt(productRow.dataset.stock),
+            vatRate: parseFloat(productRow.dataset.vatRate) || 0
+        };
+        
+        const existingItem = this.cart.find(item => item.id === productId);
+        
+        if (existingItem) {
+            const newQty = existingItem.quantity + 1;
+            if (newQty > product.stock) {
+                this.showAlert('Insufficient stock available', 'warning');
+                return;
+            }
+            existingItem.quantity = newQty;
+        } else {
+            if (product.stock <= 0) {
+                this.showAlert('Product out of stock', 'warning');
+                return;
+            }
+            this.cart.push({
+                ...product,
+                quantity: 1
+            });
+        }
+        
+        this.updateCartDisplay();
+        this.showAlert(`${product.name} added to cart`, 'success');
+    }
+    
+    updateCartDisplay() {
+        const cartItems = document.getElementById('cart-items');
+        const cartCount = document.getElementById('cart-count');
+        const cartSummary = document.getElementById('cart-summary');
+        
+        if (this.cart.length === 0) {
+            cartItems.innerHTML = `
+                <div class="empty-cart text-center text-muted py-4">
+                    <i class="fas fa-shopping-cart fa-3x mb-3"></i>
+                    <p>Cart is empty<br><small>Add products to start a sale</small></p>
+                </div>
+            `;
+            cartCount.textContent = '0 items';
+            this.updateMobileCartCount();
+            cartSummary.classList.add('d-none');
+            this.toggleButtons(false);
+            return;
+        }
+        
+        cartItems.innerHTML = this.cart.map((item, index) => `
+            <div class="cart-item-compact border-bottom py-1 mb-1">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="fw-bold small">${item.name}</div>
+                        <div class="d-flex align-items-center mt-1">
+                            <button class="btn btn-xs btn-outline-secondary p-1" onclick="pos.updateQuantity(${index}, ${Math.max(0.25, item.quantity - 0.25)})" title="Decrease">
+                                <i class="fas fa-minus" style="font-size: 10px;"></i>
+                            </button>
+                            <input type="number" class="form-control form-control-sm mx-1 text-center compact-qty-input" 
+                                   step="0.25" min="0.25" max="${item.stock}"
+                                   value="${item.quantity}" 
+                                   onchange="pos.updateQuantity(${index}, parseFloat(this.value))"
+                                   title="Quantity">
+                            <button class="btn btn-xs btn-outline-secondary p-1" onclick="pos.updateQuantity(${index}, ${item.quantity + 0.25})" title="Increase">
+                                <i class="fas fa-plus" style="font-size: 10px;"></i>
+                            </button>
+                            <span class="ms-2 small text-muted">@${this.currencySymbol}${item.price.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold text-success">${this.currencySymbol}${(item.quantity * item.price).toFixed(2)}</div>
+                        <button class="btn btn-xs btn-outline-danger p-1 mt-1" onclick="pos.removeFromCart(${index})" title="Remove">
+                            <i class="fas fa-trash cart-delete-icon"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        const totalItems = this.cart.reduce((sum, item) => sum + item.quantity, 0);
+        cartCount.textContent = `${totalItems.toFixed(2)} items`;
+        
+        // Update mobile cart count
+        this.updateMobileCartCount();
+        
+        this.updateSummary();
+        cartSummary.classList.remove('d-none');
+        this.toggleButtons(true);
+    }
+    
+    updateQuantity(index, newQuantity) {
+        if (newQuantity <= 0) {
+            this.removeFromCart(index);
+            return;
+        }
+        
+        const item = this.cart[index];
+        if (newQuantity > item.stock) {
+            this.showAlert('Insufficient stock', 'warning');
+            return;
+        }
+        
+        item.quantity = parseFloat(newQuantity.toFixed(2));
+        this.updateCartDisplay();
+    }
+    
+    removeFromCart(index) {
+        this.cart.splice(index, 1);
+        this.updateCartDisplay();
+    }
+    
+    /**
+     * Calculate cart totals with proper VAT handling
+     */
+    calculateCartTotals() {
+        let subtotal = 0;
+        let taxAmount = 0;
+        let total = 0;
+        
+        // Calculate subtotal, tax, and total based on individual product VAT rates
+        this.cart.forEach(item => {
+            const lineTotal = item.quantity * item.price;
+            const vatRate = item.vatRate || 0;
+            
+            if (this.config.vatInclusive) {
+                // Prices already include VAT - calculate backwards
+                const lineSubtotal = lineTotal / (1 + vatRate / 100);
+                const lineTax = lineTotal - lineSubtotal;
+                
+                subtotal += lineSubtotal;
+                taxAmount += lineTax;
+                total += lineTotal;
+            } else {
+                // VAT is additional to the price
+                const lineTax = lineTotal * (vatRate / 100);
+                
+                subtotal += lineTotal;
+                taxAmount += lineTax;
+                total += lineTotal + lineTax;
+            }
+        });
+        
+        return { subtotal, taxAmount, total };
+    }
+    
+    updateSummary() {
+        const totals = this.calculateCartTotals();
+        
+        document.getElementById('subtotal').textContent = this.currencySymbol + totals.subtotal.toFixed(2);
+        document.getElementById('tax-amount').textContent = this.currencySymbol + totals.taxAmount.toFixed(2);
+        document.getElementById('total-amount').textContent = this.currencySymbol + totals.total.toFixed(2);
+    }
+    
+    toggleButtons(enabled) {
+        document.getElementById('checkout-btn').disabled = !enabled;
+        document.getElementById('hold-btn').disabled = !enabled;
+        document.getElementById('clear-btn').disabled = !enabled;
+    }
+    
+    clearCart() {
+        if (this.cart.length === 0) return;
+        if (confirm('Clear all items from cart?')) {
+            this.cart = [];
+            this.updateCartDisplay();
+            this.showAlert('Cart cleared', 'info');
+        }
+    }
+    
+    showPaymentModal() {
+        if (this.cart.length === 0) return;
+        
+        const totals = this.calculateCartTotals();
+        document.getElementById('modal-total').textContent = this.currencySymbol + totals.total.toFixed(2);
+        document.getElementById('amount-received').value = totals.total.toFixed(2);
+        
+        const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+        
+        setTimeout(() => {
+            document.getElementById('amount-received').focus();
+            document.getElementById('amount-received').select();
+        }, 300);
+        
+        this.calculateChange();
+    }
+    
+    calculateChange() {
+        const totals = this.calculateCartTotals();
+        const received = parseFloat(document.getElementById('amount-received').value) || 0;
+        const change = received - totals.total;
+        
+        const changeSection = document.getElementById('change-section');
+        const changeAmount = document.getElementById('change-amount');
+        
+        if (received > 0) {
+            changeSection.classList.remove('d-none');
+            changeAmount.textContent = this.currencySymbol + Math.max(0, change).toFixed(2);
+        } else {
+            changeSection.classList.add('d-none');
+        }
+    }
+    
+    async completeSale() {
+        if (this.cart.length === 0) return;
+        
+        const customerId = document.getElementById('customer-select').value;
+        const paymentMethod = document.getElementById('payment-method').value;
+        const amountReceived = parseFloat(document.getElementById('amount-received').value);
+        
+        // Calculate totals with proper VAT handling
+        const totals = this.calculateCartTotals();
+        const { subtotal, taxAmount, total: totalAmount } = totals;
+        
+        const discountAmount = 0; // No discount for now
+        
+        if (paymentMethod !== 'credit' && amountReceived < totalAmount) {
+            this.showAlert('Insufficient amount received', 'danger');
+            return;
+        }
+        
+        // Check credit limit for credit sales
+        if (paymentMethod === 'credit' && customerId) {
+            const customer = await this.getCustomerDetails(customerId);
+            if (customer && customer.current_debt + totalAmount > customer.credit_limit) {
+                const exceeded = (customer.current_debt + totalAmount) - customer.credit_limit;
+                if (!confirm(`Credit limit exceeded by ${this.currencySymbol}${exceeded.toFixed(2)}. Continue anyway?`)) {
+                    return;
+                }
+            }
+        }
+        
+        const saleData = {
+            customer_id: customerId || null,
+            payment_method: paymentMethod,
+            amount_received: amountReceived,
+            subtotal: subtotal,
+            tax_amount: taxAmount,
+            discount_amount: discountAmount,
+            total_amount: totalAmount,
+            items: this.cart.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                unit_price: item.price
+            }))
+        };
+        
+        try {
+            const response = await fetch(this.processSaleUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCookie('csrftoken')
+                },
+                body: JSON.stringify(saleData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showAlert(`Sale completed! Invoice: ${result.invoice_number}`, 'success');
+                this.cart = [];
+                this.updateCartDisplay();
+                bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                
+                // Debug: Check if sale_id is available
+                console.log('Sale result:', result);
+                
+                if (result.sale_id && confirm('Print receipt?')) {
+                    window.open(`/pos/receipt/${result.sale_id}/`, '_blank');
+                } else if (!result.sale_id) {
+                    console.error('Sale ID not returned from server');
+                    this.showAlert('Receipt unavailable - Sale ID missing', 'warning');
+                }
+            } else {
+                this.showAlert(`Error: ${result.error}`, 'danger');
+            }
+        } catch (error) {
+            console.error('Sale error:', error);
+            this.showAlert('Failed to process sale', 'danger');
+        }
+    }
+    
+    async getCustomerDetails(customerId) {
+        try {
+            const response = await fetch(`/pos/api/customer/${customerId}/`);
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.error('Error fetching customer details:', error);
+        }
+        return null;
+    }
+    
+    holdSale() {
+        if (this.cart.length === 0) {
+            this.showAlert('Cannot hold empty cart', 'error');
+            return;
+        }
+
+        // Calculate current totals
+        const subtotal = this.cart.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+        const taxRate = this.taxRate / 100;
+        const tax = subtotal * taxRate;
+        const total = subtotal + tax;
+
+        // Create a hold ticket
+        const holdTicket = {
+            id: 'HOLD_' + Date.now(),
+            timestamp: new Date().toLocaleString(),
+            items: JSON.parse(JSON.stringify(this.cart)), // Deep copy
+            subtotal: subtotal,
+            tax: tax,
+            total: total,
+            discount: 0, // For now, no discount support
+            customer: document.getElementById('customer-select').value || null,
+            customerName: document.getElementById('customer-select').selectedOptions[0]?.text || 'Walk-in Customer'
+        };
+
+        // Save to localStorage
+        let heldSales = JSON.parse(localStorage.getItem('heldSales') || '[]');
+        heldSales.push(holdTicket);
+        localStorage.setItem('heldSales', JSON.stringify(heldSales));
+
+        // Update held sales count
+        this.updateHeldSalesCount();
+
+        // Clear current cart
+        this.clearCart();
+        
+        // Show success message with options
+        this.showHoldSuccessDialog(holdTicket);
+    }
+
+    showHoldSuccessDialog(ticket) {
+        const dialog = document.createElement('div');
+        dialog.className = 'modal fade';
+        dialog.innerHTML = `
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h6 class="modal-title">
+                            <i class="fas fa-pause me-1"></i>Sale Held Successfully
+                        </h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <div class="mb-3">
+                            <strong>Ticket #:</strong> ${ticket.id}<br>
+                            <small class="text-muted">${ticket.timestamp}</small>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Customer:</strong> ${ticket.customerName}<br>
+                            <strong>Items:</strong> ${ticket.items.length}<br>
+                            <strong>Total:</strong> ${this.currencySymbol}${ticket.total.toFixed(2)}
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="pos.showHeldSales()">
+                            <i class="fas fa-list me-1"></i>View Held Sales
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        const modal = new bootstrap.Modal(dialog);
+        modal.show();
+        
+        // Remove dialog after it's hidden
+        dialog.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(dialog);
+        });
+    }
+
+    showHeldSales() {
+        const heldSales = JSON.parse(localStorage.getItem('heldSales') || '[]');
+        
+        if (heldSales.length === 0) {
+            this.showAlert('No held sales found', 'info');
+            return;
+        }
+
+        const dialog = document.createElement('div');
+        dialog.className = 'modal fade';
+        dialog.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-pause me-2"></i>Held Sales (${heldSales.length})
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket #</th>
+                                        <th>Time</th>
+                                        <th>Customer</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${heldSales.map((sale, index) => `
+                                        <tr>
+                                            <td><code>${sale.id}</code></td>
+                                            <td><small>${sale.timestamp}</small></td>
+                                            <td>${sale.customerName}</td>
+                                            <td>${sale.items.length}</td>
+                                            <td><strong>${this.currencySymbol}${sale.total.toFixed(2)}</strong></td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm me-1" 
+                                                        onclick="pos.restoreHeldSale(${index})">
+                                                    <i class="fas fa-play"></i> Resume
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" 
+                                                        onclick="pos.deleteHeldSale(${index})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        const modal = new bootstrap.Modal(dialog);
+        modal.show();
+        
+        // Remove dialog after it's hidden
+        dialog.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(dialog);
+        });
+    }
+
+    restoreHeldSale(index) {
+        const heldSales = JSON.parse(localStorage.getItem('heldSales') || '[]');
+        
+        if (index >= 0 && index < heldSales.length) {
+            const sale = heldSales[index];
+            
+            // Clear current cart
+            this.clearCart();
+            
+            // Restore items
+            sale.items.forEach(item => {
+                this.cart.push(item);
+            });
+            
+            // Restore customer
+            if (sale.customer) {
+                document.getElementById('customer-select').value = sale.customer;
+                // Trigger customer change event to update balance info
+                document.getElementById('customer-select').dispatchEvent(new Event('change'));
+            }
+            
+            // Update display
+            this.updateCartDisplay();
+            
+            // Remove from held sales
+            heldSales.splice(index, 1);
+            localStorage.setItem('heldSales', JSON.stringify(heldSales));
+            
+            // Update held sales count
+            this.updateHeldSalesCount();
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+            modal.hide();
+            
+            this.showAlert('Sale restored successfully', 'success');
+        }
+    }
+
+    deleteHeldSale(index) {
+        if (confirm('Are you sure you want to delete this held sale?')) {
+            const heldSales = JSON.parse(localStorage.getItem('heldSales') || '[]');
+            
+            if (index >= 0 && index < heldSales.length) {
+                heldSales.splice(index, 1);
+                localStorage.setItem('heldSales', JSON.stringify(heldSales));
+                
+                // Update held sales count
+                this.updateHeldSalesCount();
+                
+                // Refresh the modal
+                const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+                modal.hide();
+                
+                setTimeout(() => this.showHeldSales(), 300);
+                this.showAlert('Held sale deleted', 'success');
+            }
+        }
+    }
+
+    updateHeldSalesCount() {
+        const heldSales = JSON.parse(localStorage.getItem('heldSales') || '[]');
+        const heldBtn = document.getElementById('held-sales-btn');
+        
+        if (heldSales.length > 0) {
+            heldBtn.innerHTML = `<i class="fas fa-pause"></i> <span class="badge bg-warning text-dark">${heldSales.length}</span>`;
+            heldBtn.classList.remove('btn-outline-info');
+            heldBtn.classList.add('btn-warning');
+        } else {
+            heldBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            heldBtn.classList.remove('btn-warning');
+            heldBtn.classList.add('btn-outline-info');
+        }
+    }
+
+    toggleMobileCart() {
+        const cartSection = document.getElementById('cart-section');
+        const productsSection = document.querySelector('.products-section');
+        
+        cartSection.classList.toggle('mobile-cart-visible');
+        productsSection.classList.toggle('mobile-products-hidden');
+        
+        // Update toggle button icon
+        const toggleBtn = document.getElementById('mobile-cart-toggle');
+        const icon = toggleBtn.querySelector('i');
+        
+        if (cartSection.classList.contains('mobile-cart-visible')) {
+            icon.className = 'fas fa-times';
+            toggleBtn.setAttribute('title', 'Close cart');
+        } else {
+            icon.className = 'fas fa-shopping-cart';
+            toggleBtn.setAttribute('title', 'Toggle cart');
+        }
+    }
+
+    updateMobileCartCount() {
+        const mobileCount = document.getElementById('mobile-cart-count');
+        if (mobileCount) {
+            mobileCount.textContent = this.cart.length;
+        }
+    }
+    
+    showAlert(message, type = 'info') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" title="Close alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 4000);
+    }
+    
+    getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+}
+
+// Initialize POS System
+let pos;
+document.addEventListener('DOMContentLoaded', function() {
+    pos = new AdvancedPOS();
+    
+    // Expose to window for console debugging and onclick handlers
+    window.pos = pos;
+    window.posSystem = pos; // Backward compatibility
+    
+    // Global keyboard shortcuts info
+    console.log('🛒 Advanced POS System Loaded');
+    console.log('💡 Press F1 for keyboard shortcuts');
 });
+
+// Global function for onclick handlers
+function addToCart(productId) {
+    pos.addToCart(productId);
+}
 </script>
 {% endblock %}

@@ -16,7 +16,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="post" enctype="multipart/form-data" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate class="product-form">
                 {% csrf_token %}
                 
                 <div class="row mb-3">
@@ -57,8 +57,18 @@
                         {% endif %}
                     </div>
                     <div class="col-md-4">
-                        <label for="{{ form.barcode.id_for_label }}" class="form-label">Barcode</label>
-                        {{ form.barcode|add_class:"form-control" }}
+                        <label for="{{ form.barcode.id_for_label }}" class="form-label">
+                            <i class="fas fa-barcode me-1"></i>Barcode
+                        </label>
+                        <div class="input-group">
+                            {{ form.barcode|add_class:"form-control" }}
+                            <button type="button" class="btn btn-outline-secondary" id="scan-barcode-btn">
+                                <i class="fas fa-camera me-1"></i>Scan
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            <small class="text-muted">Use a barcode scanner or click 'Scan' to enter barcode</small>
+                        </div>
                         {% if form.barcode.errors %}
                             <div class="text-danger mt-1">{{ form.barcode.errors }}</div>
                         {% endif %}
@@ -144,4 +154,127 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Barcode scanning functionality
+    const barcodeInput = document.getElementById('{{ form.barcode.id_for_label }}');
+    const scanButton = document.getElementById('scan-barcode-btn');
+    
+    let scanBuffer = '';
+    let scanTimeout;
+    let isScanning = false;
+    
+    // Handle barcode scanner input (rapid key sequences)
+    document.addEventListener('keypress', function(e) {
+        // Only handle when barcode field is focused or scan mode is active
+        if (!barcodeInput.matches(':focus') && !isScanning) return;
+        
+        clearTimeout(scanTimeout);
+        
+        // Add character to buffer
+        if (e.key && e.key.length === 1) {
+            scanBuffer += e.key;
+        }
+        
+        // Set timeout to detect end of scan
+        scanTimeout = setTimeout(function() {
+            if (scanBuffer.length > 3) { // Typical barcode length check
+                barcodeInput.value = scanBuffer;
+                barcodeInput.dispatchEvent(new Event('input'));
+                
+                // Show scan success feedback
+                showScanFeedback('success', 'Barcode scanned successfully');
+            }
+            scanBuffer = '';
+        }, 100); // 100ms timeout between characters
+    });
+    
+    // Handle Enter key for barcode scanners
+    barcodeInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (barcodeInput.value.trim()) {
+                showScanFeedback('success', 'Barcode entered successfully');
+            }
+        }
+    });
+    
+    // Scan button click handler
+    scanButton.addEventListener('click', function() {
+        isScanning = !isScanning;
+        
+        if (isScanning) {
+            scanButton.innerHTML = '<i class="fas fa-stop me-1"></i>Stop';
+            scanButton.classList.remove('btn-outline-secondary');
+            scanButton.classList.add('btn-warning');
+            barcodeInput.closest('.col-md-4').classList.add('barcode-scanning');
+            barcodeInput.focus();
+            showScanFeedback('info', 'Scan mode active - use your barcode scanner');
+        } else {
+            scanButton.innerHTML = '<i class="fas fa-camera me-1"></i>Scan';
+            scanButton.classList.remove('btn-warning');
+            scanButton.classList.add('btn-outline-secondary');
+            barcodeInput.closest('.col-md-4').classList.remove('barcode-scanning');
+            showScanFeedback('secondary', 'Scan mode disabled');
+        }
+    });
+    
+    // Auto-focus barcode field when page loads
+    if (barcodeInput && !barcodeInput.value) {
+        setTimeout(() => barcodeInput.focus(), 100);
+    }
+    
+    // Function to show scan feedback
+    function showScanFeedback(type, message) {
+        // Remove existing feedback
+        const existingFeedback = document.querySelector('.barcode-feedback');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+        
+        // Create feedback element
+        const feedback = document.createElement('div');
+        feedback.className = `alert alert-${type} alert-dismissible fade show barcode-feedback mt-2`;
+        feedback.innerHTML = `
+            <i class="fas fa-barcode me-1"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert after barcode input group
+        barcodeInput.closest('.input-group').after(feedback);
+        
+        // Auto-hide after 3 seconds for non-error messages
+        if (type !== 'danger') {
+            setTimeout(() => {
+                if (feedback && feedback.parentNode) {
+                    feedback.remove();
+                }
+            }, 3000);
+        }
+    }
+    
+    // Generate barcode number if empty
+    const generateBarcodeBtn = document.createElement('button');
+    generateBarcodeBtn.type = 'button';
+    generateBarcodeBtn.className = 'btn btn-outline-info btn-sm mt-1';
+    generateBarcodeBtn.innerHTML = '<i class="fas fa-magic me-1"></i>Generate';
+    generateBarcodeBtn.title = 'Generate random barcode';
+    
+    generateBarcodeBtn.addEventListener('click', function() {
+        if (!barcodeInput.value.trim()) {
+            // Generate a random 13-digit EAN barcode
+            const timestamp = Date.now().toString();
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            const barcode = (timestamp.slice(-10) + random).slice(0, 13);
+            barcodeInput.value = barcode;
+            showScanFeedback('success', 'Barcode generated successfully');
+        }
+    });
+    
+    // Add generate button after the input group
+    barcodeInput.closest('.col-md-4').querySelector('.form-text').after(generateBarcodeBtn);
+});
+</script>
+
 {% endblock %}

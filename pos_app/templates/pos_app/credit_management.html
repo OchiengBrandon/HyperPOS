@@ -113,6 +113,103 @@
         overflow: hidden;
         box-shadow: var(--card-shadow);
     }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .credit-management-container {
+            padding: 1rem 0;
+        }
+        
+        .credit-header {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .credit-header .d-flex {
+            flex-direction: column !important;
+            align-items: center !important;
+        }
+        
+        .credit-header .text-end {
+            text-align: center !important;
+            margin-top: 1rem;
+        }
+        
+        .stats-value {
+            font-size: 1.5rem;
+        }
+        
+        .customer-debt-item {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+            padding: 1rem;
+        }
+        
+        .customer-info {
+            text-align: center;
+        }
+        
+        .debt-amount {
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        
+        .d-flex.flex-column.gap-2 {
+            flex-direction: row !important;
+            justify-content: center;
+            gap: 0.5rem !important;
+        }
+        
+        .btn-receive-payment, .btn-outline-primary {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+        }
+        
+        .container-fluid {
+            padding: 0 1rem;
+        }
+        
+        .row {
+            margin: 0;
+        }
+        
+        .col-md-8, .col-md-4 {
+            padding: 0 0.5rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .credit-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .stats-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-value {
+            font-size: 1.2rem;
+        }
+        
+        .customer-debt-item {
+            padding: 0.8rem;
+        }
+        
+        .customer-info h6 {
+            font-size: 0.9rem;
+        }
+        
+        .customer-info p {
+            font-size: 0.8rem;
+        }
+        
+        .btn-receive-payment, .btn-outline-primary {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -242,10 +339,6 @@
                                 </small>
                             </div>
                             <div class="d-flex flex-column gap-2">
-                                <button class="btn btn-outline-secondary btn-sm" 
-                                    onclick="openPaymentModal({{ customer.id }})">
-                                    <i class="fas fa-plus me-1"></i>Add Payment
-                                </button>
                                 <a href="{% url 'pos:credit_report_customer' customer.id %}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-file-alt me-1"></i>Credit History
                                 </a>
@@ -524,8 +617,6 @@ function getCookie(name) {
 }
 </script>
 
-
-
 <script>
 // Safely parse embedded JSON from the server; fall back to empty arrays/objects on error
 try {
@@ -547,302 +638,11 @@ try {
     window.customerCreditSales = {};
 }
 
-// Note: Old credit report JavaScript functions have been removed
-// Credit reports now use proper Django views with URLs
-
-// Credit report functions moved to proper Django views
-/*
-function openCreditReport(customerId=null) {
-    console.log('openCreditReport called with customerId:', customerId);
-    console.log('window.customersWithDebt:', window.customersWithDebt);
-    console.log('window.debtPayments:', window.debtPayments);
-    console.log('window.customerCreditSales:', window.customerCreditSales);
-    
-    try {
-        const generatedAt = new Date().toLocaleString();
-        const customersList = (window.customersWithDebt || []);
-        const list = customerId ? customersList.filter(c=>c.id==customerId) : customersList;
-        
-        console.log('Processing customer list:', list);
-
-    let html = `
-        <div class="p-3 bg-white rounded">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <div>
-                    <h5 class="mb-0">Credit Report</h5>
-                    <small class="text-muted">Generated: ${generatedAt}</small>
-                </div>
-                <div class="text-end">
-                    <strong>Total Outstanding: {{ business.currency_symbol }}${Number({{ total_outstanding|default:0 }}||0).toFixed(2)}</strong>
-                </div>
-            </div>
-            <table class="table table-striped table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Customer</th>
-                        <th>Current Debt</th>
-                        <th>Credit Limit</th>
-                        <th>Outstanding Invoices</th>
-                        <th>Last Payment</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    list.forEach(c => {
-        const sales = (customerCreditSales[c.id] || []).filter(s => Number(s.remaining) > 0);
-        const customerPaymentList = debtPayments.filter(p => p.customer_id === c.id);
-        const totalPaid = customerPaymentList.reduce((sum, p) => sum + Number(p.amount), 0);
-        const lastPayment = customerPaymentList.length ? customerPaymentList[0] : null;
-        
-        let invoicesHtml = '';
-        if (sales.length > 0) {
-            sales.forEach(s => { 
-                const paidAmount = Number(s.total_amount) - Number(s.remaining);
-                invoicesHtml += `
-                    <div class="mb-1">
-                        <strong>${s.invoice_number}</strong><br>
-                        <small class="text-muted">
-                            Total: {{ business.currency_symbol }}${Number(s.total_amount).toFixed(2)} | 
-                            Paid: {{ business.currency_symbol }}${paidAmount.toFixed(2)} | 
-                            Remaining: <span class="text-danger">{{ business.currency_symbol }}${Number(s.remaining).toFixed(2)}</span>
-                        </small>
-                    </div>
-                `;
-            });
-        }
-        
-        const paymentHistory = customerPaymentList.slice(0, 3).map(p => 
-            `<div class="small text-muted">${new Date(p.created_at).toLocaleDateString()}: {{ business.currency_symbol }}${Number(p.amount).toFixed(2)}</div>`
-        ).join('');
-        
-        html += `
-            <tr>
-                <td>
-                    <div>
-                        <strong>${c.full_name}</strong>
-                        <br><small class="text-muted">${c.phone||''} ${c.email?(' • '+c.email):''}</small>
-                        <br><small class="badge ${Number(c.current_debt) > Number(c.credit_limit) ? 'bg-danger' : 'bg-warning'} text-white">
-                            ${Math.round((Number(c.current_debt) / Number(c.credit_limit)) * 100)}% of limit used
-                        </small>
-                    </div>
-                </td>
-                <td>
-                    <div class="text-danger fw-bold">{{ business.currency_symbol }}${Number(c.current_debt).toFixed(2)}</div>
-                    <small class="text-muted">Total Paid: {{ business.currency_symbol }}${totalPaid.toFixed(2)}</small>
-                </td>
-                <td>{{ business.currency_symbol }}${Number(c.credit_limit).toFixed(2)}</td>
-                <td>${invoicesHtml || '<span class="text-muted">No outstanding invoices</span>'}</td>
-                <td>
-                    ${paymentHistory || '<span class="text-muted">No payments</span>'}
-                    ${lastPayment ? `<div class="mt-1"><small class="text-primary">Last: ${new Date(lastPayment.created_at).toLocaleDateString()}</small></div>` : ''}
-                </td>
-            </tr>
-        `;
-    });
-
-        html += `</tbody></table></div>`;
-        document.getElementById('credit-report-content').innerHTML = html;
-        console.log('Report HTML generated, showing modal...');
-        const modal = new bootstrap.Modal(document.getElementById('creditReportModal'));
-        modal.show();
-        console.log('Modal show() called');
-    } catch (error) {
-        console.error('Error in openCreditReport:', error);
-        alert('Error generating credit report: ' + error.message);
-    }
-}
-
-// Export currently visible report to CSV
-function exportReportToCSV() {
-    const rows = [];
-    const table = document.querySelector('#credit-report-content table');
-    if (!table) return alert('No report to export');
-    const headers = Array.from(table.querySelectorAll('thead th')).map(h => h.textContent.trim());
-    rows.push(headers.join(','));
-    table.querySelectorAll('tbody tr').forEach(tr => {
-        const cols = Array.from(tr.querySelectorAll('td')).map(td => '"' + td.textContent.replace(/"/g, '""').trim() + '"');
-        rows.push(cols.join(','));
-    });
-    const csv = rows.join('\n');
-    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `credit-report-${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-}
-
-// Individual customer report
-function openCustomerReport(customerId) {
-    console.log('Opening customer report for ID:', customerId);
-    try {
-        const customer = (window.customersWithDebt || []).find(c => c.id == customerId);
-        if (!customer) {
-            alert('Customer not found');
-            return;
-        }
-        
-        const customerSales = (window.customerCreditSales[customerId] || []);
-        const customerPayments = (window.debtPayments || []).filter(p => p.customer_id == customerId);
-        
-        const generatedAt = new Date().toLocaleString();
-        
-        let html = `
-            <div class="p-4 bg-white rounded">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-                    <div>
-                        <h4 class="mb-1">${customer.full_name} - Credit Report</h4>
-                        <p class="text-muted mb-0">Generated: ${generatedAt}</p>
-                    </div>
-                    <div class="text-end">
-                        <div class="h5 mb-1 text-danger">Current Debt: {{ business.currency_symbol }}${Number(customer.current_debt).toFixed(2)}</div>
-                        <small class="text-muted">Credit Limit: {{ business.currency_symbol }}${Number(customer.credit_limit).toFixed(2)}</small>
-                    </div>
-                </div>
-                
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6>Outstanding Invoices</h6>
-                        ${customerSales.length > 0 ? `
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead class="table-light">
-                                        <tr><th>Invoice</th><th>Date</th><th>Total</th><th>Remaining</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        ${customerSales.map(s => `
-                                            <tr>
-                                                <td>${s.invoice_number}</td>
-                                                <td>${new Date(s.created_at).toLocaleDateString()}</td>
-                                                <td>{{ business.currency_symbol }}${Number(s.total_amount).toFixed(2)}</td>
-                                                <td>{{ business.currency_symbol }}${Number(s.remaining).toFixed(2)}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ` : '<p class="text-muted">No outstanding invoices</p>'}
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h6>Recent Payments</h6>
-                        ${customerPayments.length > 0 ? `
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead class="table-light">
-                                        <tr><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        ${customerPayments.slice(-10).map(p => `
-                                            <tr>
-                                                <td>${new Date(p.created_at).toLocaleDateString()}</td>
-                                                <td>{{ business.currency_symbol }}${Number(p.amount).toFixed(2)}</td>
-                                                <td>${p.payment_type || 'Cash'}</td>
-                                                <td>${p.payment_reference || '—'}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ` : '<p class="text-muted">No payments recorded</p>'}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.getElementById('credit-report-content').innerHTML = html;
-        const modal = new bootstrap.Modal(document.getElementById('creditReportModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Error opening customer report:', error);
-        alert('Error opening customer report: ' + error.message);
-    }
-}
-
-// Hook up export and refresh buttons
-document.addEventListener('DOMContentLoaded', function() {
-    const exportBtn = document.getElementById('export-csv-btn');
-    if (exportBtn) exportBtn.addEventListener('click', exportReportToCSV);
-    const refreshBtn = document.getElementById('refresh-report-btn');
-    if (refreshBtn) refreshBtn.addEventListener('click', () => openCreditReport());
-    const search = document.getElementById('credit-report-search');
-    if (search) search.addEventListener('input', function() {
-        const q = this.value.toLowerCase().trim();
-        document.querySelectorAll('#credit-report-content tbody tr').forEach(tr => {
-            tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
-        });
-    });
+// Debug: Log parsed data to console
+console.log('Customer data loaded successfully:', {
+    customersWithDebt: window.customersWithDebt,
+    debtPayments: window.debtPayments,
+    customerCreditSales: window.customerCreditSales
 });
-
-function printCreditReport() {
-    try {
-        // Ensure report is populated
-        const reportContainer = document.getElementById('credit-report-content');
-        if (!reportContainer || !reportContainer.innerHTML.trim()) {
-            // populate synchronously
-            openCreditReport();
-        }
-
-        const content = reportContainer.innerHTML;
-        const cssFiles = [
-            (location.origin + '/static/css/base.css'),
-            (location.origin + '/static/css/pos.css')
-        ];
-
-        // Try to open a new window first (user gesture should allow it). If blocked, fallback to iframe.
-        const w = window.open('', '_blank');
-        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Credit Report</title>` +
-            cssFiles.map(href => `<link rel="stylesheet" href="${href}">`).join('') +
-            `</head><body>${content}</body></html>`;
-
-        if (w) {
-            w.document.open();
-            w.document.write(html);
-            w.document.close();
-            // Wait for styles to load
-            w.onload = function() {
-                try { w.focus(); w.print(); w.close(); } catch (e) { console.warn('print window error', e); }
-            };
-            // In case onload doesn't fire quickly, set a timeout
-            setTimeout(function() {
-                try { w.focus(); w.print(); w.close(); } catch (e) { /* ignore */ }
-            }, 800);
-        } else {
-            // Fallback: create hidden iframe, write content and print from it
-            const iframe = document.createElement('iframe');
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            document.body.appendChild(iframe);
-            const idoc = iframe.contentWindow || iframe.contentDocument;
-            const d = idoc.document || idoc;
-            d.open();
-            d.write(html);
-            d.close();
-            // Wait briefly for the iframe to render then print
-            setTimeout(function() {
-                try {
-                    iframe.contentWindow.focus();
-                    iframe.contentWindow.print();
-                } catch (e) {
-                    console.error('Iframe print failed', e);
-                    alert('Unable to open print window. Please allow popups or try printing from your browser menu.');
-                }
-                // Remove iframe after printing
-                setTimeout(() => document.body.removeChild(iframe), 1000);
-            }, 600);
-        }
-    } catch (err) {
-        console.error('printCreditReport error', err);
-        alert('An error occurred while trying to print the report. Check console for details.');
-    }
-}
-*/
 </script>
 {% endblock %}

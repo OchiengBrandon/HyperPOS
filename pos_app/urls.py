@@ -23,6 +23,10 @@ urlpatterns = [
     path('process-sale/', views.process_sale, name='process_sale'),
     path('receipt/<int:sale_id>/', views.get_receipt, name='get_receipt'),
     
+    # API endpoints
+    path('api/products/', views.api_products, name='api_products'),
+    path('api/customer/<int:customer_id>/', views.api_customer, name='api_customer'),
+    
     # Products
     path('products/', views.product_list, name='product_list'),
     path('products/create/', views.product_create, name='product_create'),
