@@ -2825,38 +2825,7 @@ def vat_management(request):
     return render(request, 'pos_app/vat_management.html', context)
 
 @login_required
-def add_vat_category(request):
-    business = get_business_for_user(request.user)
-    if not business:
-        return redirect('pos:business_setup')
-    
-    role = get_user_role(request.user, business)
-    if role not in ['owner', 'admin']:
-        messages.error(request, 'You do not have permission to add VAT categories')
-        return redirect('pos:vat_management')
-    
-    if request.method == 'POST':
-        from .models import VATCategory
-        
-        name = request.POST.get('name')
-        code = request.POST.get('code')
-        rate = request.POST.get('rate')
-        description = request.POST.get('description', '')
-        
-        if name and code and rate:
-            VATCategory.objects.create(
-                business=business,
-                name=name,
-                code=code,
-                rate=Decimal(rate),
-                description=description,
-                created_by=request.user
-            )
-            messages.success(request, f'VAT category "{name}" has been created')
-        else:
-            messages.error(request, 'Please fill in all required fields')
-    
-    return redirect('pos:vat_management')
+# Removed duplicate add_vat_category function - using the one below that handles both form and JSON data
 
 @login_required
 def edit_vat_category(request, pk):
@@ -3125,54 +3094,135 @@ def receive_payment(request):
 
 @login_required
 def add_vat_category(request):
-    """Add new VAT category"""
+    """Add new VAT category - handles both form data and JSON data"""
     business = get_business_for_user(request.user)
     if not business:
-        return JsonResponse({'error': 'No business found'}, status=404)
+        # For form submissions, redirect to business setup
+        if request.content_type == 'application/json' or request.META.get('HTTP_ACCEPT', '').startswith('application/json'):
+            return JsonResponse({'error': 'No business found'}, status=404)
+        else:
+            return redirect('pos:business_setup')
     
     # Get user role
     role = get_user_role(request.user, business)
-    if role not in ['owner', 'admin', 'manager']:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+    if role not in ['owner', 'admin']:
+        if request.content_type == 'application/json' or request.META.get('HTTP_ACCEPT', '').startswith('application/json'):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+        else:
+            messages.error(request, 'You do not have permission to add VAT categories')
+            return redirect('pos:vat_management')
     
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            name = data.get('name', '').strip()
-            rate = Decimal(str(data.get('rate', 0)))
+            # Check if this is a JSON request or form request
+            is_json_request = request.content_type == 'application/json' or request.META.get('HTTP_ACCEPT', '').startswith('application/json')
             
+            if is_json_request:
+                # Handle JSON data
+                data = json.loads(request.body)
+                name = data.get('name', '').strip()
+                code = data.get('code', '').strip()
+                rate = Decimal(str(data.get('rate', 0)))
+                description = data.get('description', '').strip()
+                is_active = data.get('is_active', True)
+            else:
+                # Handle form data
+                name = request.POST.get('name', '').strip()
+                code = request.POST.get('code', '').strip()
+                rate = Decimal(str(request.POST.get('rate', 0)))
+                description = request.POST.get('description', '').strip()
+                is_active = request.POST.get('is_active') == 'on' or request.POST.get('is_active') == True
+            
+            # Validation
             if not name:
-                return JsonResponse({'error': 'Category name is required'}, status=400)
+                error_msg = 'Category name is required'
+                if is_json_request:
+                    return JsonResponse({'error': error_msg}, status=400)
+                else:
+                    messages.error(request, error_msg)
+                    return redirect('pos:vat_management')
+            
+            if not code:
+                error_msg = 'VAT code is required'
+                if is_json_request:
+                    return JsonResponse({'error': error_msg}, status=400)
+                else:
+                    messages.error(request, error_msg)
+                    return redirect('pos:vat_management')
             
             if rate < 0:
-                return JsonResponse({'error': 'VAT rate cannot be negative'}, status=400)
+                error_msg = 'VAT rate cannot be negative'
+                if is_json_request:
+                    return JsonResponse({'error': error_msg}, status=400)
+                else:
+                    messages.error(request, error_msg)
+                    return redirect('pos:vat_management')
             
-            # Check if category already exists
+            # Check if category already exists (by name or code)
             if VATCategory.objects.filter(business=business, name=name).exists():
-                return JsonResponse({'error': 'VAT category with this name already exists'}, status=400)
+                error_msg = 'VAT category with this name already exists'
+                if is_json_request:
+                    return JsonResponse({'error': error_msg}, status=400)
+                else:
+                    messages.error(request, error_msg)
+                    return redirect('pos:vat_management')
+            
+            if VATCategory.objects.filter(business=business, code=code).exists():
+                error_msg = f'VAT category with code "{code}" already exists'
+                if is_json_request:
+                    return JsonResponse({'error': error_msg}, status=400)
+                else:
+                    messages.error(request, error_msg)
+                    return redirect('pos:vat_management')
             
             # Create new VAT category
             vat_category = VATCategory.objects.create(
                 business=business,
                 name=name,
+                code=code,
                 rate=rate,
-                created_by=request.user
+                description=description,
+                is_active=is_active
             )
             
-            return JsonResponse({
-                'success': True,
-                'message': f'VAT category "{name}" added successfully',
-                'category': {
-                    'id': vat_category.id,
-                    'name': vat_category.name,
-                    'rate': float(vat_category.rate)
-                }
-            })
+            success_msg = f'VAT category "{name}" added successfully'
             
+            if is_json_request:
+                return JsonResponse({
+                    'success': True,
+                    'message': success_msg,
+                    'category': {
+                        'id': vat_category.id,
+                        'name': vat_category.name,
+                        'code': vat_category.code,
+                        'rate': float(vat_category.rate),
+                        'description': vat_category.description,
+                        'is_active': vat_category.is_active
+                    }
+                })
+            else:
+                messages.success(request, success_msg)
+                return redirect('pos:vat_management')
+            
+        except json.JSONDecodeError:
+            if is_json_request:
+                return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+            else:
+                messages.error(request, 'Invalid form data')
+                return redirect('pos:vat_management')
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            error_msg = f'Error creating VAT category: {str(e)}'
+            if is_json_request:
+                return JsonResponse({'error': error_msg}, status=500)
+            else:
+                messages.error(request, error_msg)
+                return redirect('pos:vat_management')
     
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    # For non-POST requests
+    if request.content_type == 'application/json' or request.META.get('HTTP_ACCEPT', '').startswith('application/json'):
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    else:
+        return redirect('pos:vat_management')
 
 
 @login_required

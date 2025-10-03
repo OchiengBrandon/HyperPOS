@@ -350,7 +350,7 @@
             {% if sale.vat_breakdown %}
                 {% for vat_info in sale.vat_breakdown %}
                     <div class="receipt-total-row font-small">
-                        <span>{{ vat_info.category_name }} ({{ vat_info.rate }}%):</span>
+                        <span>VAT {{ vat_info.code }} ({{ vat_info.rate }}%):</span>
                         <span>{{ business.currency_symbol }} {{ vat_info.amount|floatformat:2 }}</span>
                     </div>
                 {% endfor %}

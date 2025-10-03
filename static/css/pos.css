@@ -109,20 +109,83 @@
     font-weight: 900 !important;
 }
 
-/* Search container icon visibility */
+/* Search container icon visibility - Enhanced */
+.search-container .input-group-text {
+    background: white !important;
+    border-color: #ced4da !important;
+    position: relative;
+    z-index: 1;
+}
+
 .search-container .input-group-text .fas {
     color: #007bff !important;
     opacity: 1 !important;
+    font-weight: 900 !important;
+    font-family: "Font Awesome 6 Free" !important;
+    display: inline-block !important;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}
+
+.search-container .btn {
+    background: white !important;
+    border-color: #ced4da !important;
+    position: relative;
+    z-index: 1;
 }
 
 .search-container .btn .fas {
     color: #007bff !important;
     opacity: 1 !important;
+    font-weight: 900 !important;
+    font-family: "Font Awesome 6 Free" !important;
+    display: inline-block !important;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}
+
+.search-container .btn-outline-secondary {
+    background: white !important;
 }
 
 .search-container .btn-outline-secondary .fas {
     color: #6c757d !important;
     opacity: 1 !important;
+    font-weight: 900 !important;
+    font-family: "Font Awesome 6 Free" !important;
+    display: inline-block !important;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Hover states for better visibility */
+.search-container .btn:hover .fas {
+    color: white !important;
+}
+
+.search-container .btn-outline-secondary:hover .fas {
+    color: white !important;
+}
+
+/* Force icon visibility with absolute positioning and contrast */
+.search-container i.fas::before {
+    content: inherit !important;
+    color: inherit !important;
+    font-size: inherit !important;
+    font-weight: 900 !important;
+}
+
+/* Specific icon content to ensure they render */
+.search-container .fa-search::before {
+    content: "\f002" !important;
+}
+
+.search-container .fa-barcode::before {
+    content: "\f02a" !important;
+}
+
+.search-container .fa-times::before {
+    content: "\f00d" !important;
 }
 
 .products-table-container {

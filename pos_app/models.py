@@ -296,7 +296,7 @@ class Sale(models.Model):
     def vat_breakdown(self):
         """Get VAT breakdown by category"""
         from collections import defaultdict
-        vat_summary = defaultdict(lambda: {'amount': 0, 'rate': 0, 'category_name': ''})
+        vat_summary = defaultdict(lambda: {'amount': 0, 'rate': 0, 'category_name': '', 'code': ''})
         
         for item in self.items.all():
             if item.product.vat_category and item.total_vat_amount > 0:
@@ -305,6 +305,7 @@ class Sale(models.Model):
                 vat_summary[key]['amount'] += item.total_vat_amount
                 vat_summary[key]['rate'] = vat_cat.rate
                 vat_summary[key]['category_name'] = vat_cat.name
+                vat_summary[key]['code'] = vat_cat.code
         
         return [value for value in vat_summary.values() if value['amount'] > 0]
     
