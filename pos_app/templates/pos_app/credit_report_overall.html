@@ -125,9 +125,9 @@
                     <p class="mb-0 opacity-75">{{ business.name }} | Generated: {{ report_generated_at|date:"M d, Y H:i" }}</p>
                 </div>
                 <div class="col-md-4 text-end no-print">
-                    <button class="btn print-btn me-2" onclick="window.print()">
-                        <i class="fas fa-print me-2"></i>Print Report
-                    </button>
+                    <a href="?format=pdf" class="btn print-btn me-2">
+                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                    </a>
                     <a href="{% url 'pos:credit_management' %}" class="btn btn-outline-light">
                         <i class="fas fa-arrow-left me-2"></i>Back
                     </a>
@@ -195,7 +195,7 @@
                                     Utilization: {{ customer_data.credit_utilization|floatformat:1 }}%
                                 </small>
                                 <div class="progress-custom mt-2">
-                                    <div class="progress-bar-custom" style="width: {{ customer_data.credit_utilization|floatformat:1 }}%"></div>
+                                    <div class="progress-bar-custom" data-width="{{ customer_data.credit_utilization|floatformat:1 }}"></div>
                                 </div>
                             </div>
                         </div>
@@ -293,4 +293,17 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate progress bars
+    const progressBars = document.querySelectorAll('.progress-bar-custom[data-width]');
+    progressBars.forEach(bar => {
+        const width = bar.getAttribute('data-width');
+        setTimeout(() => {
+            bar.style.width = width + '%';
+        }, 100);
+    });
+});
+</script>
 {% endblock %}

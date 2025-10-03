@@ -130,9 +130,9 @@
                     <button class="btn btn-outline-light" onclick="location.reload()">
                         <i class="fas fa-sync-alt me-2"></i>Refresh
                     </button>
-                    <button class="btn btn-light ms-2" onclick="openCreditReport()">
-                        <i class="fas fa-print me-2"></i>Print Credit Report
-                    </button>
+                    <a href="{% url 'pos:credit_report_overall' %}" class="btn btn-light ms-2">
+                        <i class="fas fa-chart-line me-2"></i>View Credit Report
+                    </a>
                 </div>
             </div>
         </div>
@@ -196,10 +196,9 @@
                                     onclick="openPaymentModal({{ customer.id }})">
                                     <i class="fas fa-money-bill-wave me-1"></i>Receive Payment
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm" 
-                                    onclick="openCustomerReport({{ customer.id }})">
+                                <a href="{% url 'pos:credit_report_customer' customer.id %}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-file-alt me-1"></i>Report
-                                </button>
+                                </a>
                             </div>
                         </div>
                         {% empty %}
@@ -211,6 +210,51 @@
                         {% endfor %}
                     </div>
                 </div>
+
+                <!-- Customers without Current Debt -->
+                {% if customers_without_debt %}
+                <div class="debt-card mt-4">
+                    <div class="debt-card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Customers - No Current Debt
+                        </h5>
+                        <small class="text-muted">View credit history and make payments</small>
+                    </div>
+                    <div class="debt-card-body">
+                        {% for customer in customers_without_debt %}
+                        <div class="customer-debt-item">
+                            <div class="customer-info flex-grow-1">
+                                <h6>{{ customer.full_name }}</h6>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-envelope me-1"></i>{{ customer.email|default:"No email" }}
+                                    <i class="fas fa-phone ms-3 me-1"></i>{{ customer.phone|default:"No phone" }}
+                                </p>
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>No Outstanding Debt
+                                </span>
+                            </div>
+                            <div class="text-end me-3">
+                                <div class="debt-amount text-success">
+                                    {{ business.currency_symbol }}0.00
+                                </div>
+                                <small class="text-muted">
+                                    Limit: {{ business.currency_symbol }}{{ customer.credit_limit|floatformat:0 }}
+                                </small>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                <button class="btn btn-outline-secondary btn-sm" 
+                                    onclick="openPaymentModal({{ customer.id }})">
+                                    <i class="fas fa-plus me-1"></i>Add Payment
+                                </button>
+                                <a href="{% url 'pos:credit_report_customer' customer.id %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-file-alt me-1"></i>Credit History
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Recent Payment History -->
@@ -345,10 +389,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function openPaymentModal(customerId) {
-    // Lookup customer details from the embedded JSON
+    // Debug: Log the available customers and the ID we're looking for
+    console.log('Looking for customer ID:', customerId);
+    console.log('Available customers:', window.customersWithDebt);
+    
+    // Lookup customer details from the embedded JSON (now includes all customers)
     const cust = (window.customersWithDebt || []).find(c => c.id == customerId);
-    const customerName = cust ? cust.full_name : '';
-    const debtAmount = cust ? parseFloat(cust.current_debt) : 0;
+    
+    if (!cust) {
+        console.error('Customer not found! ID:', customerId, 'Available IDs:', (window.customersWithDebt || []).map(c => c.id));
+        alert('Customer not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    const customerName = cust.full_name || 'Unknown Customer';
+    const debtAmount = parseFloat(cust.current_debt) || 0;
 
     currentCustomerDebt = debtAmount;
 
@@ -356,7 +411,16 @@ function openPaymentModal(customerId) {
     document.getElementById('customer-name').textContent = customerName;
     document.getElementById('current-debt').textContent = '{{ business.currency_symbol }}' + debtAmount.toFixed(2);
     document.getElementById('payment-amount').value = '';
-    document.getElementById('payment-amount').max = debtAmount;
+    
+    // For customers without debt, allow any positive amount
+    if (debtAmount > 0) {
+        document.getElementById('payment-amount').max = debtAmount;
+        document.getElementById('payment-amount').placeholder = `Max: ${debtAmount.toFixed(2)}`;
+    } else {
+        document.getElementById('payment-amount').removeAttribute('max');
+        document.getElementById('payment-amount').placeholder = 'Enter payment amount';
+    }
+    
     document.getElementById('payment-method').value = 'cash';
     document.getElementById('payment-reference').value = '';
     document.getElementById('payment-notes').value = '';
@@ -403,7 +467,8 @@ function processPayment() {
         return;
     }
     
-    if (amount > currentCustomerDebt) {
+    // Only check debt limit if customer has existing debt
+    if (currentCustomerDebt > 0 && amount > currentCustomerDebt) {
         alert('Payment amount cannot exceed the current debt');
         return;
     }
@@ -459,58 +524,34 @@ function getCookie(name) {
 }
 </script>
 
-<!-- Credit Report Modal -->
-<div class="modal fade" id="creditReportModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Credit Report</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="credit-report-tools" class="mb-3 d-flex justify-content-between align-items-center">
-                    <div class="input-group w-50">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" id="credit-report-search" class="form-control" placeholder="Search customers or invoices...">
-                    </div>
-                    <div>
-                        <button class="btn btn-outline-secondary me-2" id="export-csv-btn"><i class="fas fa-file-csv me-1"></i>Export CSV</button>
-                        <button class="btn btn-primary" id="refresh-report-btn"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
-                    </div>
-                </div>
-                <div id="credit-report-content" class="table-responsive">
-                    <!-- Report populated by JS -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="printCreditReport()">Print</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script>
 // Safely parse embedded JSON from the server; fall back to empty arrays/objects on error
 try {
-    window.customersWithDebt = JSON.parse('{{ customers_with_debt_json|default:'[]'|escapejs }}');
+    window.customersWithDebt = JSON.parse('{{ customers_with_debt_json|default:"[]"|escapejs }}');
 } catch (e) {
     console.warn('Failed to parse customers_with_debt_json:', e);
     window.customersWithDebt = [];
 }
 try {
-    window.debtPayments = JSON.parse('{{ debt_payments_json|default:'[]'|escapejs }}');
+    window.debtPayments = JSON.parse('{{ debt_payments_json|default:"[]"|escapejs }}');
 } catch (e) {
     console.warn('Failed to parse debt_payments_json:', e);
     window.debtPayments = [];
 }
 try {
-    window.customerCreditSales = JSON.parse('{{ customer_credit_sales_json|default:'{}'|escapejs }}');
+    window.customerCreditSales = JSON.parse('{{ customer_credit_sales_json|default:"{}"|escapejs }}');
 } catch (e) {
     console.warn('Failed to parse customer_credit_sales_json:', e);
     window.customerCreditSales = {};
 }
 
+// Note: Old credit report JavaScript functions have been removed
+// Credit reports now use proper Django views with URLs
+
+// Credit report functions moved to proper Django views
+/*
 function openCreditReport(customerId=null) {
     console.log('openCreditReport called with customerId:', customerId);
     console.log('window.customersWithDebt:', window.customersWithDebt);
@@ -802,5 +843,6 @@ function printCreditReport() {
         alert('An error occurred while trying to print the report. Check console for details.');
     }
 }
+*/
 </script>
 {% endblock %}

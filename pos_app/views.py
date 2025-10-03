@@ -59,6 +59,37 @@ def get_user_role(user, business):
     except Employee.DoesNotExist:
         return None
 
+def calculate_actual_customer_debt(customer):
+    """Calculate the actual outstanding debt for a customer based on sales and payments"""
+    # Get all credit sales for this customer
+    credit_sales = Sale.objects.filter(
+        customer=customer,
+        payment_method='credit',
+        status='completed'
+    )
+    
+    total_debt = Decimal('0.00')
+    for sale in credit_sales:
+        # Calculate total payments made for this sale
+        paid_amount = sale.debt_payments.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        # Add remaining amount to total debt
+        remaining = sale.total_amount - paid_amount
+        if remaining > 0:
+            total_debt += remaining
+    
+    return total_debt
+
+def sync_customer_debt(customer):
+    """Synchronize customer's current_debt field with actual outstanding amounts"""
+    actual_debt = calculate_actual_customer_debt(customer)
+    if customer.current_debt != actual_debt:
+        customer.current_debt = actual_debt
+        customer.save()
+    return actual_debt
+
 # Authentication views
 def register_view(request):
     if request.method == 'POST':
@@ -2807,11 +2838,17 @@ def credit_management(request):
         messages.error(request, 'You do not have permission to manage credit')
         return redirect('pos:dashboard')
     
-    # Get customers with debt
-    customers_with_debt = Customer.objects.filter(
-        business=business, 
-        current_debt__gt=0
-    ).order_by('-current_debt')
+    # Sync all customer debts to ensure consistency
+    all_customers = Customer.objects.filter(business=business)
+    for customer in all_customers:
+        sync_customer_debt(customer)
+    
+    # Get all customers for credit management (including those without current debt)
+    all_customers_list = Customer.objects.filter(business=business).order_by('-current_debt', 'first_name', 'last_name')
+    
+    # Separate customers with and without debt for different sections
+    customers_with_debt = [c for c in all_customers_list if c.current_debt > 0]
+    customers_without_debt = [c for c in all_customers_list if c.current_debt == 0]
     
     # Get all debt payments for reporting
     debt_payments = DebtPayment.objects.filter(
@@ -2819,11 +2856,8 @@ def credit_management(request):
     ).order_by('-created_at')[:50]  # Last 50 payments
     
     # Calculate summary statistics
-    total_outstanding = customers_with_debt.aggregate(
-        total=Sum('current_debt')
-    )['total'] or Decimal('0.00')
-    
-    customers_count = customers_with_debt.count()
+    total_outstanding = sum(c.current_debt for c in customers_with_debt)
+    customers_count = len(customers_with_debt)
     
     # Get overdue debts (customers with debt older than 30 days)
     from datetime import timedelta
@@ -2837,22 +2871,23 @@ def credit_management(request):
         'business': business,
         'role': role,
         'customers_with_debt': customers_with_debt,
+        'customers_without_debt': customers_without_debt,
+        'all_customers': all_customers_list,
         'debt_payments': debt_payments,
         'total_outstanding': total_outstanding,
         'customers_count': customers_count,
         'overdue_debts': overdue_debts,
     }
-    # Add JSON serializable data for client-side report generation
-    # Embed JSON strings so templates can safely parse them into JS
+    # Add JSON serializable data for client-side payment modal (include ALL customers)
     context['customers_with_debt_json'] = json.dumps([
         {
             'id': c.id,
             'full_name': c.full_name,
-            'email': c.email,
-            'phone': c.phone,
+            'email': c.email or '',
+            'phone': c.phone or '',
             'current_debt': float(c.current_debt),
             'credit_limit': float(c.credit_limit),
-        } for c in customers_with_debt
+        } for c in all_customers_list  # Include all customers, not just those with debt
     ])
     context['debt_payments_json'] = json.dumps([
         {
@@ -2911,12 +2946,14 @@ def receive_payment(request):
             if payment_amount <= 0:
                 return JsonResponse({'error': 'Payment amount must be greater than zero'}, status=400)
             
-            if payment_amount > customer.current_debt:
+            # Only check debt limit if customer has existing debt
+            if customer.current_debt > 0 and payment_amount > customer.current_debt:
                 return JsonResponse({'error': 'Payment amount cannot exceed current debt'}, status=400)
             
-            # Update customer debt
-            customer.current_debt -= payment_amount
-            customer.save()
+            # Update customer debt (only reduce if they have existing debt)
+            if customer.current_debt > 0:
+                customer.current_debt -= payment_amount
+                customer.save()
             
             # Handle payment allocation to sales
             remaining_payment = payment_amount
@@ -3166,7 +3203,12 @@ def credit_report_overall(request):
         messages.error(request, 'You do not have permission to view credit reports')
         return redirect('pos:dashboard')
     
-    # Get customers with debt
+    # Sync all customer debts first
+    all_customers = Customer.objects.filter(business=business)
+    for customer in all_customers:
+        sync_customer_debt(customer)
+    
+    # Get customers with debt after syncing
     customers_with_debt = Customer.objects.filter(
         business=business, 
         current_debt__gt=0
@@ -3248,7 +3290,103 @@ def credit_report_overall(request):
         'report_generated_at': timezone.now(),
     }
     
+    # Check if PDF export is requested
+    if request.GET.get('format') == 'pdf':
+        return generate_overall_credit_pdf(request, context)
+    
     return render(request, 'pos_app/credit_report_overall.html', context)
+
+def generate_overall_credit_pdf(request, context):
+    """Generate PDF version of overall credit report"""
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from io import BytesIO
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], 
+                                fontSize=20, spaceAfter=30, alignment=TA_CENTER)
+    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], 
+                                  fontSize=14, spaceAfter=12, alignment=TA_LEFT)
+    
+    business = context['business']
+    
+    # Title
+    title = Paragraph(f"Credit Report - Overall", title_style)
+    elements.append(title)
+    
+    # Business and date info
+    business_info = Paragraph(f"{business.name}<br/>Generated: {context['report_generated_at'].strftime('%B %d, %Y at %I:%M %p')}", styles['Normal'])
+    elements.append(business_info)
+    elements.append(Spacer(1, 20))
+    
+    # Summary Statistics
+    summary_data = [
+        ['Summary Statistics', ''],
+        ['Total Outstanding Debt:', f"{business.currency_symbol}{context['total_outstanding']:,.2f}"],
+        ['Number of Customers with Debt:', str(context['customers_count'])],
+        ['Number of Overdue Accounts:', str(context['overdue_count'])],
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 20))
+    
+    # Customers with Debt
+    if context['detailed_customers']:
+        elements.append(Paragraph("Customers with Outstanding Debt", heading_style))
+        
+        customer_data = [['Customer', 'Phone', 'Outstanding Amount', 'Credit Limit', 'Utilization %']]
+        for customer_info in context['detailed_customers']:
+            customer = customer_info['customer']
+            customer_data.append([
+                customer.full_name,
+                customer.phone or 'N/A',
+                f"{business.currency_symbol}{customer.current_debt:,.2f}",
+                f"{business.currency_symbol}{customer.credit_limit:,.2f}",
+                f"{customer_info['credit_utilization']:.1f}%"
+            ])
+        
+        customer_table = Table(customer_data, colWidths=[1.8*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1*inch])
+        customer_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        elements.append(customer_table)
+    
+    # Build PDF
+    doc.build(elements)
+    
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="credit_report_overall_{timezone.now().strftime("%Y%m%d")}.pdf"'
+    
+    return response
 
 @login_required
 def credit_report_customer(request, customer_id):
@@ -3264,6 +3402,9 @@ def credit_report_customer(request, customer_id):
         return redirect('pos:dashboard')
     
     customer = get_object_or_404(Customer, id=customer_id, business=business)
+    
+    # Sync customer debt first
+    sync_customer_debt(customer)
     
     # Get all credit sales for this customer
     credit_sales = Sale.objects.filter(
@@ -3303,19 +3444,199 @@ def credit_report_customer(request, customer_id):
         count=Count('id')
     ).order_by('-total')
     
+    # Add percentage calculation to payment methods
+    total_payments_amount = all_payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    payment_methods = []
+    for method in payment_method_breakdown:
+        percentage = (method['total'] / total_payments_amount * 100) if total_payments_amount > 0 else 0
+        payment_methods.append({
+            'payment_type': method['payment_type'],
+            'total_amount': method['total'],
+            'count': method['count'],
+            'percentage': percentage
+        })
+    
+    # Calculate outstanding sales
+    outstanding_sales = []
+    outstanding_sales_count = 0
+    for sale_data in sales_data:
+        if sale_data['remaining'] > 0:
+            outstanding_sales.append(sale_data)
+            outstanding_sales_count += 1
+    
+    # Calculate averages
+    average_sale_amount = total_credit_sales / len(credit_sales) if credit_sales else Decimal('0.00')
+    average_payment_amount = total_payments_amount / all_payments.count() if all_payments.count() > 0 else Decimal('0.00')
+    
+    # Get last payment date
+    last_payment = all_payments.first()
+    last_payment_date = last_payment.created_at if last_payment else None
+    
+    # Calculate overdue information
+    has_overdue = False
+    overdue_days = 0
+    if outstanding_sales:
+        # Check if any outstanding sales are over 30 days old
+        from datetime import timedelta
+        cutoff_date = timezone.now().date() - timedelta(days=30)
+        for sale_data in outstanding_sales:
+            if sale_data['sale'].created_at.date() < cutoff_date:
+                has_overdue = True
+                days_old = (timezone.now().date() - sale_data['sale'].created_at.date()).days
+                overdue_days = max(overdue_days, days_old)
+    
     context = {
         'business': business,
         'role': role,
         'customer': customer,
-        'sales_data': sales_data,
-        'all_payments': all_payments,
-        'payment_method_breakdown': payment_method_breakdown,
-        'total_credit_sales': total_credit_sales,
+        'outstanding_sales': outstanding_sales,
+        'outstanding_sales_count': outstanding_sales_count,
+        'recent_payments': all_payments[:20],  # Last 20 payments
+        'payment_methods': payment_methods,
+        'total_credit_sales': len(credit_sales),
+        'total_payments': all_payments.count(),
         'total_paid': total_paid,
-        'total_outstanding': customer.current_debt,
         'credit_utilization': (customer.current_debt / customer.credit_limit * 100) if customer.credit_limit > 0 else 0,
         'is_over_limit': customer.current_debt > customer.credit_limit,
+        'has_overdue': has_overdue,
+        'overdue_days': overdue_days,
+        'average_sale_amount': average_sale_amount,
+        'average_payment_amount': average_payment_amount,
+        'last_payment_date': last_payment_date,
         'report_generated_at': timezone.now(),
     }
     
+    # Check if PDF export is requested
+    if request.GET.get('format') == 'pdf':
+        return generate_customer_credit_pdf(request, customer, context)
+    
     return render(request, 'pos_app/credit_report_customer.html', context)
+
+def generate_customer_credit_pdf(request, customer, context):
+    """Generate PDF version of customer credit report"""
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from io import BytesIO
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Container for the 'Flowable' objects
+    elements = []
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], 
+                                fontSize=18, spaceAfter=30, alignment=TA_CENTER)
+    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], 
+                                  fontSize=14, spaceAfter=12, alignment=TA_LEFT)
+    normal_style = styles['Normal']
+    
+    business = context['business']
+    
+    # Title
+    title = Paragraph(f"Credit Report - {customer.full_name}", title_style)
+    elements.append(title)
+    
+    # Business info
+    business_info = Paragraph(f"{business.name}<br/>Generated: {context['report_generated_at'].strftime('%B %d, %Y at %I:%M %p')}", normal_style)
+    elements.append(business_info)
+    elements.append(Spacer(1, 12))
+    
+    # Customer Information Table
+    customer_data = [
+        ['Customer Information', ''],
+        ['Name:', customer.full_name],
+        ['Phone:', customer.phone or 'N/A'],
+        ['Email:', customer.email or 'N/A'],
+        ['Address:', customer.address or 'N/A'],
+        ['Credit Limit:', f"{business.currency_symbol}{customer.credit_limit:,.2f}"],
+        ['Current Outstanding:', f"{business.currency_symbol}{customer.current_debt:,.2f}"],
+        ['Credit Utilization:', f"{context['credit_utilization']:.1f}%"],
+        ['Account Since:', customer.created_at.strftime('%B %d, %Y')],
+    ]
+    
+    customer_table = Table(customer_data, colWidths=[2*inch, 3*inch])
+    customer_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(customer_table)
+    elements.append(Spacer(1, 20))
+    
+    # Outstanding Sales
+    if context['outstanding_sales']:
+        elements.append(Paragraph("Outstanding Invoices", heading_style))
+        
+        sales_data = [['Invoice', 'Date', 'Total Amount', 'Paid Amount', 'Remaining']]
+        for sale_data in context['outstanding_sales']:
+            sales_data.append([
+                sale_data['sale'].invoice_number,
+                sale_data['sale'].created_at.strftime('%m/%d/%Y'),
+                f"{business.currency_symbol}{sale_data['sale'].total_amount:,.2f}",
+                f"{business.currency_symbol}{sale_data['paid_amount']:,.2f}",
+                f"{business.currency_symbol}{sale_data['remaining']:,.2f}"
+            ])
+        
+        sales_table = Table(sales_data, colWidths=[1.2*inch, 1*inch, 1.2*inch, 1.2*inch, 1.2*inch])
+        sales_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        elements.append(sales_table)
+        elements.append(Spacer(1, 20))
+    
+    # Payment History (last 10 payments)
+    if context['recent_payments']:
+        elements.append(Paragraph("Recent Payment History", heading_style))
+        
+        payment_data = [['Date', 'Amount', 'Method', 'Reference']]
+        for payment in context['recent_payments'][:10]:
+            payment_data.append([
+                payment.created_at.strftime('%m/%d/%Y %H:%M'),
+                f"{business.currency_symbol}{payment.amount:,.2f}",
+                payment.payment_type.title(),
+                payment.payment_reference or 'N/A'
+            ])
+        
+        payment_table = Table(payment_data, colWidths=[1.5*inch, 1.2*inch, 1*inch, 2*inch])
+        payment_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        elements.append(payment_table)
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # FileResponse sets the Content-Disposition header so that browsers
+    # present the option to save the file.
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="credit_report_{customer.full_name}_{timezone.now().strftime("%Y%m%d")}.pdf"'
+    
+    return response

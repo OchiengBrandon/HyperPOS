@@ -1,0 +1,417 @@
+{% extends 'pos_app/base.html' %}
+
+{% block title %}Credit Report - {{ customer.full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .credit-report {
+        background: #f8f9fa;
+        min-height: calc(100vh - 120px);
+    }
+    
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .customer-info-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-row .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        height: 100%;
+        text-align: center;
+    }
+    
+    .stats-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .timeline-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    
+    .timeline-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        position: relative;
+    }
+    
+    .timeline-item:last-child {
+        border-bottom: none;
+    }
+    
+    .timeline-date {
+        font-weight: 600;
+        color: #667eea;
+    }
+    
+    .timeline-amount {
+        font-weight: 700;
+    }
+    
+    .timeline-amount.credit {
+        color: #dc3545;
+    }
+    
+    .timeline-amount.payment {
+        color: #28a745;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+    }
+    
+    .progress-custom {
+        height: 12px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-bar-custom {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.6s ease;
+    }
+    
+    .progress-bar-danger {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+    }
+    
+    .progress-bar-warning {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+    }
+    
+    .progress-bar-success {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+    }
+    
+    .badge-custom {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+    
+    .badge-overdue {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        color: white;
+    }
+    
+    .badge-over-limit {
+        background: linear-gradient(135deg, #ffa726, #ff9800);
+        color: white;
+    }
+    
+    .badge-good {
+        background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        color: white;
+    }
+    
+    .print-btn {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .print-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .timeline-card { page-break-inside: avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="credit-report">
+    <div class="container-fluid">
+        <!-- Report Header -->
+        <div class="report-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">Credit Report - {{ customer.full_name }}</h1>
+                    <p class="mb-0 opacity-75">{{ business.name }} | Generated: {{ report_generated_at|date:"M d, Y H:i" }}</p>
+                </div>
+                <div class="col-md-4 text-end no-print">
+                    <a href="?format=pdf" class="btn print-btn me-2">
+                        <i class="fas fa-file-pdf me-2"></i>Export PDF
+                    </a>
+                    <a href="{% url 'pos:credit_report_overall' %}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Overall Report
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Information -->
+        <div class="customer-info-card">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h3 class="mb-3">{{ customer.full_name }}</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% if customer.phone %}
+                            <p><i class="fas fa-phone me-2"></i>{{ customer.phone }}</p>
+                            {% endif %}
+                            {% if customer.email %}
+                            <p><i class="fas fa-envelope me-2"></i>{{ customer.email }}</p>
+                            {% endif %}
+                            {% if customer.address %}
+                            <p><i class="fas fa-map-marker-alt me-2"></i>{{ customer.address }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Credit Limit:</strong> {{ business.currency_symbol }}{{ customer.credit_limit|floatformat:0 }}</p>
+                            <p><strong>Account Since:</strong> {{ customer.created_at|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="mb-3">
+                        {% if is_over_limit %}
+                            <span class="badge badge-custom badge-over-limit">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Over Limit
+                            </span>
+                        {% endif %}
+                        {% if has_overdue %}
+                            <span class="badge badge-custom badge-overdue">
+                                <i class="fas fa-clock me-1"></i>Overdue
+                            </span>
+                        {% endif %}
+                        {% if not is_over_limit and not has_overdue and customer.current_debt > 0 %}
+                            <span class="badge badge-custom badge-good">
+                                <i class="fas fa-check me-1"></i>Good Standing
+                            </span>
+                        {% endif %}
+                    </div>
+                    <h4 class="text-danger mb-1">{{ business.currency_symbol }}{{ customer.current_debt|floatformat:2 }}</h4>
+                    <small class="text-muted">Current Outstanding</small>
+                </div>
+            </div>
+            
+            <!-- Credit Utilization Bar -->
+            <div class="mt-4">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Credit Utilization</span>
+                    <span class="fw-bold">{{ credit_utilization|floatformat:1 }}%</span>
+                </div>
+                <div class="progress-custom">
+                    {% if credit_utilization > 90 %}
+                        <div class="progress-bar-custom progress-bar-danger" data-width="{{ credit_utilization|floatformat:1 }}"></div>
+                    {% elif credit_utilization > 70 %}
+                        <div class="progress-bar-custom progress-bar-warning" data-width="{{ credit_utilization|floatformat:1 }}"></div>
+                    {% else %}
+                        <div class="progress-bar-custom progress-bar-success" data-width="{{ credit_utilization|floatformat:1 }}"></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Row -->
+        <div class="row stats-row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-primary">{{ outstanding_sales_count }}</div>
+                    <div class="text-muted">Outstanding Invoices</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-success">{{ total_paid|floatformat:0 }}</div>
+                    <div class="text-muted">Total Paid</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-info">{{ payment_methods|length }}</div>
+                    <div class="text-muted">Payment Methods Used</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-warning">{{ overdue_days|default:"0" }}</div>
+                    <div class="text-muted">Days Overdue</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Outstanding Sales -->
+            <div class="col-md-8">
+                <div class="timeline-card mb-4">
+                    <div class="p-3 border-bottom">
+                        <h5 class="mb-0">Outstanding Invoices</h5>
+                    </div>
+                    {% if outstanding_sales %}
+                        {% for sale_data in outstanding_sales %}
+                        <div class="timeline-item {% if sale_data.is_overdue %}bg-light{% endif %}">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <div class="timeline-date">{{ sale_data.sale.invoice_number }}</div>
+                                    <small class="text-muted">{{ sale_data.sale.created_at|date:"M d, Y" }}</small>
+                                    {% if sale_data.is_overdue %}
+                                        <br><span class="badge bg-warning text-dark">Overdue</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Total: {{ business.currency_symbol }}{{ sale_data.sale.total_amount|floatformat:2 }}</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Paid: {{ business.currency_symbol }}{{ sale_data.paid_amount|floatformat:2 }}</strong>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div class="timeline-amount credit">
+                                        {{ business.currency_symbol }}{{ sale_data.remaining|floatformat:2 }}
+                                    </div>
+                                    <small class="text-muted">Remaining</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="timeline-item text-center">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                            <p class="mb-0">No outstanding invoices</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Payment History -->
+                <div class="timeline-card">
+                    <div class="p-3 border-bottom">
+                        <h5 class="mb-0">Payment History</h5>
+                    </div>
+                    {% if recent_payments %}
+                        {% for payment in recent_payments %}
+                        <div class="timeline-item">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <div class="timeline-date">{{ payment.created_at|date:"M d, Y H:i" }}</div>
+                                    <small class="text-muted">{{ payment.payment_type|title }}</small>
+                                </div>
+                                <div class="col-md-4">
+                                    {% if payment.sale %}
+                                        <small>Invoice: {{ payment.sale.invoice_number }}</small>
+                                    {% else %}
+                                        <small class="text-muted">General Payment</small>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="timeline-amount payment">
+                                        +{{ business.currency_symbol }}{{ payment.amount|floatformat:2 }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="timeline-item text-center">
+                            <i class="fas fa-history fa-2x text-muted mb-2"></i>
+                            <p class="mb-0">No payment history</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Summary Sidebar -->
+            <div class="col-md-4">
+                <!-- Payment Methods Breakdown -->
+                <div class="chart-container">
+                    <h6 class="mb-3">Payment Methods</h6>
+                    {% for method in payment_methods %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>{{ method.payment_type|title }}</span>
+                        <strong>{{ business.currency_symbol }}{{ method.total_amount|floatformat:2 }}</strong>
+                    </div>
+                    <div class="progress-custom mb-3">
+                        <div class="progress-bar-custom progress-bar-success" data-width="{{ method.percentage }}"></div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No payments recorded</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Account Summary -->
+                <div class="chart-container">
+                    <h6 class="mb-3">Account Summary</h6>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end pe-3">
+                                <h4 class="text-primary mb-1">{{ total_credit_sales }}</h4>
+                                <small class="text-muted">Total Sales</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="ps-3">
+                                <h4 class="text-success mb-1">{{ total_payments }}</h4>
+                                <small class="text-muted">Total Payments</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <span>Average Sale</span>
+                        <strong>{{ business.currency_symbol }}{{ average_sale_amount|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Average Payment</span>
+                        <strong>{{ business.currency_symbol }}{{ average_payment_amount|floatformat:2 }}</strong>
+                    </div>
+                    {% if last_payment_date %}
+                    <div class="d-flex justify-content-between">
+                        <span>Last Payment</span>
+                        <strong>{{ last_payment_date|date:"M d, Y" }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate progress bars
+    const progressBars = document.querySelectorAll('.progress-bar-custom[data-width]');
+    progressBars.forEach(bar => {
+        const width = bar.getAttribute('data-width');
+        setTimeout(() => {
+            bar.style.width = width + '%';
+        }, 100);
+    });
+});
+</script>
+{% endblock %}
